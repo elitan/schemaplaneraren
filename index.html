@@ -1,0 +1,1859 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Schemaplaneraren</title>
+<meta name="description" content="Lägger grundschema för vård och omsorg. Följer arbetstidslagen, ger alla exakt sina timmar och samlar ledigheten i block. Allt sparas i webbläsaren.">
+<style>
+/* Neutral profil. Verksamheten väljer namn och färg under Inställningar, och färgen sätts i --accent. Systemtypsnitt, inga
+   externa resurser. Bara ljust tema, valt medvetet. Layout: en kolumn, max 1240px. Toppfält med sparstatus, en vy med schemat, personen öppnas genom att klicka på namnet, inställningar bakom kugghjulet. Schema visar en vecka i taget som en tabell, eller hela perioden som rytmremsor. Paneler glider in från höger. */
+:root{
+  --bg:#eff2ef; --surface:#ffffff; --surface-2:#f4f6f4; --surface-3:#e5eae6;
+  --ink:#071013; --ink-2:#454545; --muted:#5d6a64; --faint:#9aa59f;
+  --line:#e0e6e1; --line-2:#cdd5cf;
+  --accent:#2f5d8a; --accent-tint:#e6edf4;
+  --ok:#258735; --ok-tint:#e4f3e7; --bad:#c42b2b; --bad-tint:#fcebeb; --warn:#b45309; --warn-tint:#fdf1e1;
+  --btn:var(--accent); --btn-ink:#ffffff;
+  --shadow-sm:0 1px 2px rgba(7,16,19,.05); --shadow-lg:0 16px 48px rgba(7,16,19,.16),0 2px 8px rgba(7,16,19,.06); --scrim:rgba(7,16,19,.24);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.015em;text-wrap:balance}
+p{margin:0}
+.app{max-width:1240px;margin:0 auto;padding-inline:clamp(16px,3vw,32px);padding-block:20px 72px;display:flex;flex-direction:column;gap:18px}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+
+/* toppfält */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand h1{font-size:18px;font-weight:600;letter-spacing:-.01em;line-height:1.2}
+.bt{display:flex;flex-direction:column}
+.bt>span{font-size:12.5px;color:var(--muted)}
+.mark{width:40px;height:40px;border-radius:11px;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none}
+.save{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.save i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.save.ok i{background:var(--ok)}.save.busy i{background:var(--accent)}.save.bad i{background:var(--bad)}
+.tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#tabs{align-self:flex-start}
+.btn{height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface);font-weight:550;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:var(--shadow-sm);white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.btn.primary:hover{opacity:.88}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.icon{width:34px;padding:0}
+.btn.ghost{border-color:transparent;box-shadow:none;background:none}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.danger{color:var(--bad)}
+.btn.small{height:28px;padding:0 10px;font-size:12.5px}
+svg{flex:none}
+
+.seg{display:inline-flex;background:var(--surface-3);border-radius:10px;padding:3px;gap:2px}
+.seg button{height:30px;padding:0 16px;border-radius:8px;font-size:13.5px;font-weight:550;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+.seg.sm button{height:26px;padding:0 12px;font-size:12.5px}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.stepper{display:flex;align-items:center;gap:4px}
+.stepper .lab{min-width:120px;text-align:center;font-weight:600;font-size:14px}
+
+.banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--accent-tint);border-radius:12px;padding:12px 16px;font-size:13.5px}
+.banner b{font-weight:600}
+.wt tr.addrow td{padding:6px 10px 10px;text-align:left;border-bottom:0}
+span.addrow,div.addrow{display:flex;gap:4px;flex-wrap:wrap}
+.addrow .btn{color:var(--accent);height:28px;font-size:12.5px}
+div.addrow{padding:4px 0 8px}
+.form select,.form .finput{border:0;background:var(--surface-2);border-radius:6px;padding:6px 8px;font:inherit;min-width:0}
+.form .finput{text-align:left;width:min(240px,60%)}
+.fhint{font-size:12px;color:var(--muted)}
+.btn.del{color:var(--bad)}
+.btn.del.armed{background:var(--bad-tint);border-color:transparent}
+.frow.wrap{flex-wrap:wrap}
+.chks{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:flex-end}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.chk input{accent-color:var(--accent);width:15px;height:15px;margin:0}
+.ued,.ted{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ued .frow,.ted .frow{min-height:46px}
+.finput.nm{flex:1 1 140px;width:auto;min-width:0;text-align:left;font-weight:600}
+.ued .frow,.ted .frow{flex-wrap:wrap;row-gap:8px}
+.gchips{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px;align-items:center}
+.gchip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border-radius:8px;padding:4px 4px 4px 6px}
+.gchip input{width:72px;border:0;background:var(--surface);border-radius:6px;padding:4px 6px;font-weight:550}
+.vlist{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px;align-items:center}
+.vtime{display:inline-flex;align-items:center;gap:3px;background:var(--surface-2);border-radius:8px;padding:3px 3px 3px 5px;font-size:12px;color:var(--muted)}
+.vtime input{width:52px;border:0;background:var(--surface);border-radius:6px;padding:4px 2px;text-align:center;font-variant-numeric:tabular-nums}
+.vtime button,.gchip button{color:var(--muted);display:grid;place-items:center;width:22px;height:22px;border-radius:6px;flex:none}
+.vtime button:hover,.gchip button:hover{background:var(--surface-3);color:var(--bad)}
+.swatch{width:24px;height:24px;border-radius:7px;background:var(--c);flex:none;box-shadow:inset 0 0 0 1px rgba(7,16,19,.12)}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatch.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.unit{display:inline-flex;align-items:center;gap:6px}
+.form .finput.wide{width:min(320px,62%)}
+
+/* välkomstsidan och guiden */
+.welcome{display:flex;flex-direction:column;gap:16px;max-width:760px;margin:0 auto;width:100%}
+.welcome .hero{padding:24px;gap:14px}
+.welcome .hero h2{font-size:22px;letter-spacing:-.02em}
+.welcome .lead{font-size:15px;color:var(--ink-2)}
+.facts{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;color:var(--ink-2)}
+.wsteps{counter-reset:step}
+.wsteps>.card>h2::before{counter-increment:step;content:counter(step);display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent-tint);color:var(--accent);font-size:12px;margin-right:8px;vertical-align:1px}
+.gu{display:grid;grid-template-columns:minmax(120px,1fr) minmax(160px,2fr) auto;gap:8px;align-items:center}
+.gu input{border:0;background:var(--surface-2);border-radius:6px;padding:8px 10px;min-width:0}
+.tpl{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;border:1px solid var(--line);cursor:pointer}
+.tpl:has(input:checked){border-color:var(--accent);background:var(--accent-tint)}
+.tpl input{accent-color:var(--accent);margin-top:3px}
+.tpl small{display:block;color:var(--muted)}
+@media (max-width:560px){.gu{grid-template-columns:1fr}.welcome .hero{padding:18px}}
+.mini{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.frow .mini input{width:40px;text-align:center}
+.tgl{display:flex;align-items:center}
+.tgl .toggle.on{background:var(--accent)}
+.form.scrollx{overflow-x:auto}
+.btn.ghost[aria-pressed="true"]{background:var(--surface-3);color:var(--accent)}
+.sethead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sethead h2{font-size:20px;letter-spacing:-.02em}
+details.rules{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm)}
+details.rules>summary{cursor:pointer;padding:14px 16px;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px}
+details.rules>summary::-webkit-details-marker{display:none}
+details.rules>summary span{font-weight:400;color:var(--muted);font-size:13px}
+details.rules>summary svg{transition:transform .15s;flex:none}
+details.rules[open]>summary svg{transform:rotate(180deg)}
+details.rules>.cols{padding:0 16px 16px}
+details.rules .card{box-shadow:none}
+
+/* status */
+.status{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm)}
+.shead{display:flex;align-items:center;gap:12px;padding:14px 16px;width:100%;text-align:left}
+.sicon{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none}
+.status.ok .sicon{background:var(--ok-tint);color:var(--ok)}
+.status.bad .sicon{background:var(--bad-tint);color:var(--bad)}
+.status.wait .sicon{background:var(--accent-tint);color:var(--accent)}
+.status.busy{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+.sicon.spin svg{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spct{font-size:15px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}
+.strack{height:6px;margin:0 16px 14px;border-radius:999px;background:var(--surface-3);overflow:hidden}
+.sbar{height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .2s linear}
+#tab-schema.busy #schemaView,#tab-schema.busy .bar{opacity:.4;pointer-events:none;transition:opacity .2s}
+.stext{display:flex;flex-direction:column;min-width:0;flex:1}
+.stext b{font-size:15px;font-weight:600}
+.stext span{font-size:13px;color:var(--muted)}
+.smore{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.smore svg{transition:transform .15s}
+.status.open .smore svg{transform:rotate(180deg)}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line)}
+.metric{padding:10px 16px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.metric+.metric{border-left:1px solid var(--line)}
+.metric b{font-size:17px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.metric span{font-size:12px;color:var(--muted)}
+.metric b.bad{color:var(--bad)}.metric b.warn{color:var(--warn)}.metric b.ok{color:var(--ok)}
+.todo{list-style:none;margin:0;padding:4px 8px 8px;border-top:1px solid var(--line);display:flex;flex-direction:column;max-height:360px;overflow-y:auto}
+.todo button{display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;padding:7px 8px;border-radius:7px;font-size:13px}
+.todo button:hover{background:var(--surface-2)}
+.todo .tname{font-weight:600;flex:none}
+.todo .what{color:var(--ink-2);flex:1 1 auto;min-width:0}
+.todo .when{margin-left:auto;color:var(--muted);flex:none;font-size:12px}
+.sev{width:7px;height:7px;border-radius:50%;flex:none;transform:translateY(-1px);display:inline-block}
+.sev.hard{background:var(--bad)}.sev.vik{background:var(--warn)}.sev.soft{background:var(--faint)}.sev.ok{background:var(--ok)}
+
+/* veckotabell */
+.tw{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm)}
+table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;font-size:13px}
+.wt th,.wt td{padding:3px 3px;border-bottom:1px solid var(--line);text-align:center;font-weight:400}
+.wt thead th{font-size:12px;color:var(--muted);font-weight:600;padding:12px 4px 8px;background:var(--surface)}
+.wt .nmc{position:sticky;left:0;background:var(--surface);z-index:1;text-align:left;min-width:180px;width:200px;padding-left:12px}
+.wt .gh th{text-align:left;padding:16px 12px 6px;font-size:12px;color:var(--muted);font-weight:600;position:sticky;left:0;background:var(--surface)}
+.wt .gh th span{font-weight:400}
+.wt td.we,.wt th.we{background:var(--surface-2)}
+.cell{width:100%;min-width:78px;height:36px;border-radius:8px;font-size:11.5px;letter-spacing:-.01em;font-variant-numeric:tabular-nums;font-weight:550;display:flex;align-items:center;justify-content:center;position:relative}
+.cell:hover{outline:2px solid var(--ink);outline-offset:-2px}
+.cell.off{color:var(--faint);font-weight:400}
+.cell{flex-direction:column;line-height:1.15}
+.cell small{font-size:10px;font-weight:500;opacity:.8}
+.cell.kc{background:var(--c);color:var(--on)}
+.cell small.away{font-weight:600;opacity:.9}
+.cell.wish{box-shadow:inset 0 0 0 1.5px var(--warn)}
+.cell.lockd::before{content:"";position:absolute;top:4px;right:5px;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.55}
+.cell.flag{box-shadow:inset 0 0 0 2px var(--bad)}
+.cell.moved{box-shadow:0 0 0 2px var(--accent)}
+.wt .hc{font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:12.5px;padding-right:14px;text-align:right;white-space:nowrap}
+.wt thead .hc{text-align:right}
+.wt .cov th,.wt .cov td{font-size:12px;padding-top:6px;padding-bottom:8px}
+.wt .cov th{color:var(--muted);font-weight:500}
+.okc{color:var(--ok);font-weight:700}
+.tag{font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.tag.bad{color:var(--bad);background:var(--bad-tint)}
+.tag.warn{color:var(--warn);background:var(--warn-tint)}
+.who{display:flex;align-items:center;gap:10px;text-align:left;min-width:0;width:100%}
+.av{width:28px;height:28px;border-radius:50%;background:var(--surface-3);display:grid;place-items:center;font-size:11px;font-weight:600;color:var(--ink-2);flex:none}
+.nmw{min-width:0;display:flex;flex-direction:column}
+.who b{font-weight:550;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who small{color:var(--muted);font-size:12px}
+.who:hover b{text-decoration:underline;text-underline-offset:2px}
+.empty{padding:18px 12px!important;color:var(--muted);text-align:left!important}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);padding:12px 4px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:4px;display:inline-block}
+
+/* hela perioden */
+.people{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm);overflow:hidden}
+.phead,.prow{display:grid;grid-template-columns:200px minmax(0,1fr) 84px;gap:18px;align-items:center;padding:0 16px}
+.phead{padding-top:14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.phead .hint{font-size:12px;color:var(--muted)}
+.ptitle{padding:14px 16px 4px;font-size:12px;font-weight:600;color:var(--muted)}
+.prow{padding-top:6px;padding-bottom:6px}
+.prow:hover{background:var(--surface-2)}
+.strip{display:grid;gap:8px}
+.wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.wkl{font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.wkl .letters{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;text-align:center;font-size:10px;color:var(--faint)}
+.c{aspect-ratio:1/1.15;border-radius:3px;position:relative;max-height:24px}
+.c.free{background:var(--surface-3)}
+.c.free.we{background:var(--line-2)}
+.c:hover{outline:2px solid var(--ink);outline-offset:1px}
+.c.wish{box-shadow:inset 0 0 0 1.5px var(--warn)}
+.c.flag{box-shadow:0 0 0 2px var(--bad)}
+.c.moved{box-shadow:0 0 0 2px var(--accent)}
+.pstat{text-align:right;font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
+.pstat .bad{color:var(--bad)}
+.kc{background:var(--c)}
+.c.awayc::after{content:"";position:absolute;right:2px;bottom:2px;width:4px;height:4px;border-radius:50%;background:var(--on);opacity:.8}
+.awaytag{font-size:10px;font-weight:600;border-radius:4px;padding:0 4px;background:var(--surface-3);color:var(--ink-2)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
+
+/* personal */
+.notes{padding:12px 16px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink-2)}
+.notes p{display:flex;gap:8px;align-items:baseline}
+.stack{display:flex;flex-direction:column;gap:16px}
+
+/* regler */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card h2{font-size:15px}
+.card .note{font-size:12px;color:var(--muted)}
+.rule{display:grid;grid-template-columns:30px 1fr;gap:2px 10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.rule:last-child{border-bottom:0}
+.rule .rn{color:var(--faint);font-variant-numeric:tabular-nums;font-size:12.5px}
+.rule .rt{font-size:13px;font-weight:550}
+.rule .rv{grid-column:2;font-size:12.5px;display:flex;align-items:baseline;gap:6px;color:var(--ink-2)}
+.rule .rh{grid-column:2;font-size:12px;color:var(--muted)}
+.form{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.frow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;min-height:44px;font-size:13px}
+.frow+.frow{border-top:1px solid var(--line)}
+.frow label,.frow>span:first-child{color:var(--ink-2)}
+.frow input{border:0;background:var(--surface-2);border-radius:6px;padding:6px 8px;text-align:right}
+.frow input[type=number]{width:76px}
+.frow input.time{width:64px;text-align:center}
+.frow .times{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.stgrid{display:grid;grid-template-columns:1fr repeat(5,50px);gap:6px;align-items:center;padding:8px 12px;font-size:13px}
+.stgrid+.stgrid{border-top:1px solid var(--line)}
+.stgrid .hd{font-size:11px;color:var(--muted);text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
+.stgrid .hd span{font-size:9.5px;white-space:nowrap;line-height:1.1}
+.stgrid input{width:50px;border:0;background:var(--surface-2);border-radius:6px;padding:6px 4px;text-align:center}
+
+/* popover, panel, toast */
+.pop{position:fixed;z-index:40;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;width:300px;max-height:min(560px,calc(100vh - 24px));overflow-y:auto;animation:pop .12s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.ph{padding:8px 10px 6px;display:flex;flex-direction:column}
+.ph b{font-size:13.5px;font-weight:600}
+.ph span{font-size:12px;color:var(--muted)}
+.sep{height:1px;background:var(--line);margin:4px 2px}
+.item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:7px;font-size:13px;text-align:left}
+.item:hover{background:var(--surface-2)}
+.item .r{margin-left:auto;font-size:12px;color:var(--muted)}
+.item.cur{font-weight:600}
+.vrow{display:flex;flex-direction:column;gap:5px;padding:6px 10px}
+.vrow .vl{display:flex;align-items:center;gap:8px;font-size:13px}
+.vbs{display:flex;flex-wrap:wrap;gap:4px}
+.vbtn{font-size:12px;font-variant-numeric:tabular-nums;padding:5px 9px;border-radius:7px;background:var(--surface-2);border:1px solid transparent}
+.vbtn:hover{border-color:var(--line-2)}
+.vbtn.on{background:var(--btn);color:var(--btn-ink)}
+.vbtn.dim{opacity:.55}
+.toggle{width:32px;height:19px;border-radius:999px;background:var(--surface-3);margin-left:auto;position:relative;flex:none;transition:background .15s}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow-sm);transition:transform .15s}
+.toggle.on{background:var(--warn)}
+.toggle.on::after{transform:translateX(13px)}
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:30;animation:fade .15s}
+@keyframes fade{from{opacity:0}}
+.sheet{position:fixed;z-index:35;top:0;right:0;bottom:0;width:min(500px,100%);background:var(--surface);box-shadow:var(--shadow-lg);overflow-y:auto;display:flex;flex-direction:column;gap:20px;
+  padding:calc(18px + env(safe-area-inset-top,0px)) 24px calc(32px + env(safe-area-inset-bottom,0px));animation:slide .2s ease-out}
+@keyframes slide{from{transform:translateX(24px);opacity:0}}
+.shtop{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.shtop h2{font-size:20px}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec h3{font-size:12px;font-weight:600;color:var(--muted)}
+.ident{display:flex;align-items:center;gap:14px}
+.ident .av{width:44px;height:44px;font-size:15px}
+.ident h2{font-size:20px}
+.shbtns{display:flex;gap:2px}
+.zone{margin-top:6px;padding:18px 16px 20px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;gap:18px;scroll-margin-top:12px}
+.zone .form{background:var(--surface)}
+.zhead h3{font-size:15px;color:var(--ink);font-weight:600}
+.zone h4{margin:0;font-size:12px;font-weight:600;color:var(--muted)}
+.dayh{font:inherit;color:inherit;padding:2px 8px;border-radius:6px}
+.dayh:hover{background:var(--surface-3);color:var(--ink)}
+.covb{width:100%;min-height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.covb:hover{background:var(--surface-3)}
+.dnav{display:flex;align-items:center;gap:4px}
+.dnav h2{font-size:19px;min-width:0}
+.dnav .btn{font-size:20px;line-height:1}
+.dgroup{display:flex;flex-direction:column;gap:10px;padding-top:4px}
+.dgroup+.dgroup{border-top:1px solid var(--line);padding-top:16px}
+.dgh{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.dgh h3{font-size:15px;color:var(--ink)}
+.okt{color:var(--ok);font-size:12.5px;font-weight:600}.warnt{color:var(--warn);font-size:12.5px;font-weight:600}.badt{color:var(--bad);font-size:12.5px;font-weight:600}
+.dtype{display:flex;flex-direction:column;gap:4px}
+.dth{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.dth .muted{margin-left:auto;font-weight:400}
+.dlist{list-style:none;margin:0;padding:0 0 0 17px;display:flex;flex-direction:column}
+.dlist li{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)}
+.dlist li:last-child{border-bottom:0}
+.dtime{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.dname{font-weight:550;text-align:left}
+.dname:hover{text-decoration:underline;text-underline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--surface-2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap}
+.stat span{font-size:11.5px;color:var(--muted)}
+.stat b.bad{color:var(--bad)}
+.cal{display:grid;grid-template-columns:30px repeat(7,minmax(0,1fr));gap:4px;font-size:11px}
+.cal .hd{color:var(--faint);text-align:center;font-size:10.5px}
+.cal .wn{color:var(--muted);align-self:center;font-size:11px}
+.cc{border-radius:7px;background:var(--surface-2);min-height:40px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;padding:4px 5px;text-align:left;min-width:0}
+.cc:hover{outline:2px solid var(--ink);outline-offset:-1px}
+.cc .t{font-size:10.5px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+.cc.we{background:var(--surface-3)}
+.cc.wish{box-shadow:inset 0 0 0 1.5px var(--warn)}
+.cc.flag{box-shadow:inset 0 0 0 2px var(--bad)}
+.cc.kc{background:var(--c);color:var(--on)}
+.cc .t.aw{font-size:9.5px;font-weight:500;opacity:.85}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.list li{display:flex;gap:10px;align-items:baseline;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .when{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap}
+.list .val{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:550;white-space:nowrap}
+textarea.paste{width:100%;min-height:160px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface-2);padding:10px;font-family:var(--mono);font-size:12.5px;resize:vertical}
+.prev{width:100%;border-collapse:collapse;font-size:13px}
+.prev td,.prev th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}
+.prev th{font-size:12px;color:var(--muted);font-weight:600}
+.prev .warnt{color:var(--warn);font-size:12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--btn);color:var(--btn-ink);border-radius:10px;padding:10px 10px 10px 16px;font-size:13px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-lg);z-index:50;max-width:calc(100% - 32px);animation:pop .15s ease-out}
+.toast button{color:var(--btn-ink);font-weight:600;padding:4px 8px;border-radius:6px;opacity:.85;white-space:nowrap}
+.toast button:hover{opacity:1;background:rgba(127,127,127,.25)}
+.progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:60}
+.progress div{height:100%;width:0;background:var(--accent);transition:width .1s linear}
+
+@media (max-width:720px){
+  .brand{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:4px;align-items:center}
+  .brand .save{grid-column:2}
+  .phead,.prow{grid-template-columns:minmax(0,1fr) auto;row-gap:8px}
+  .phead .hint{display:none}
+  .phead .strip,.prow .strip{grid-column:1/-1;grid-row:2}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .metrics{grid-template-columns:1fr}
+  .metric+.metric{border-left:0;border-top:1px solid var(--line)}
+  .wt .nmc{min-width:130px;width:130px}
+  .stgrid{grid-template-columns:1fr repeat(5,40px)}
+  .stgrid input{width:40px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="progress" id="progress" hidden><div id="pbar"></div></div>
+<div class="app">
+  <header class="top">
+    <div class="brand"><span class="mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 4l9 6.5"/><path d="M5.5 9v10.5h13V9"/><path d="M10 19.5v-5h4v5"/></svg></span><div class="bt"><h1 id="orgName">Schemaplaneraren</h1><span id="orgSub">Grundschema för vård och omsorg</span></div><span class="save" id="save"><i></i><span>Sparas automatiskt</span></span></div>
+    <div class="tools">
+      <button class="btn ghost icon" id="btnUndo" title="Ångra senaste ändringen" aria-label="Ångra"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.5 2.5 6.5l3 3"/><path d="M2.5 6.5h7a4 4 0 0 1 0 8H7"/></svg></button>
+      <button class="btn ghost icon" id="btnSettings" title="Inställningar" aria-label="Inställningar" aria-pressed="false"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      <button class="btn" id="btnExcel"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>Ladda ner Excel</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <section id="tab-schema" class="stack" aria-label="Schema">
+    <section class="status" id="status"></section>
+    <div class="bar">
+      <div class="seg sm" id="modeSeg" role="group" aria-label="Visning">
+        <button data-mode="vecka" aria-pressed="true">Vecka</button>
+        <button data-mode="period" aria-pressed="false">Hela perioden</button>
+      </div>
+      <div class="stepper" id="stepper">
+        <button class="btn ghost icon" id="wPrev" aria-label="Föregående vecka"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
+        <div class="lab" id="wLabel"></div>
+        <button class="btn ghost icon" id="wNext" aria-label="Nästa vecka"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
+      </div>
+    </div>
+    <div id="schemaView"></div>
+  </section>
+
+  <section id="tab-regler" class="stack" aria-label="Inställningar" hidden></section>
+  <section id="tab-welcome" class="stack" aria-label="Välkommen" hidden></section>
+</div>
+
+<div id="pop" class="pop" hidden></div>
+<div id="scrim" class="scrim" hidden></div>
+<aside id="sheet" class="sheet" hidden></aside>
+<div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+<script id="engine">
+/* ================= Motor: modell, poäng och optimering =================
+   Allt om verksamheten kommer från inställningarna: avdelningar med grupper, egna passtyper
+   med tillåtna tider, bemanning per grupp och personliga begränsningar. Grundschemat är
+   cykliskt: sista dagen följs av första. Arbetstidslagen är inbyggd och väger tyngst: hellre ett
+   tomt pass än brott mot vilan. Personalen jobbar i sin hemgrupp och lånas till en annan grupp i
+   avdelningen bara när bemanningen kräver det. Mellan avdelningar flyttar bara chefen själv. */
+const DOW=['mån','tis','ons','tor','fre','lör','sön'];
+const DOWL=['Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag','Söndag'];
+const PALETTE=['#f1a238','#f8dcae','#cfe1f3','#3b5b8c','#86cfa4','#e9b7c9','#b9b2e3','#c8cdc9','#7fb7e6','#d97757'];
+const BREAK_AFTER=5*60;   // arbetstidslagen 15 §: rast senast efter fem timmars arbete, så kortare pass har ingen rast
+const MAX_SPAN=16*60;     // längsta pass, även nattpass
+// Färger för verksamhetens profil. Den första är standard.
+const ACCENTS=[['#2f5d8a','Blå'],['#2e7a5a','Grön'],['#6b4c9a','Lila'],['#a5512c','Rost'],['#3f4a56','Grafit']];
+// Regler som verksamheten ställer in. Standardvärdena följer arbetstidslagen och vanlig praxis.
+const RULES={dailyRest:11,weeklyRest:36,night:false,wkEvery:2,maxRow:5,maxWeekDays:5,maxWeekPct:20,lend:'behov',fillWeekend:false,balance:'balans'};
+const LAW_DAILY=11,LAW_WEEKLY=36;
+const EVERY={2:'varannan',3:'var tredje',4:'var fjärde'};
+const WG='ABCD';   // helglag: lag A arbetar helgen i vecka 1, lag B i vecka 2 och så vidare
+// Grundschemats längd måste gå jämnt upp med helgrytmen, annars stämmer inte rytmen när schemat börjar om.
+function weekOptions(E){return {2:[4,6,8,10,12],3:[3,6,9,12],4:[4,8,12]}[E]||[4,6,8];}
+function wgIndex(x,E){const i=WG.indexOf(x&&x.wg);return i<0?0:i%E;}
+/* Vikter i prioritetsordning. Ju högre nivå, desto tyngre väger en avvikelse. Siffrorna är straffpoäng och
+   har prövats fram med tests/sweep.js mot testscenarierna. */
+const W={
+  // 1. Arbetstidslagen väger tyngst med bred marginal: ett brott ska alltid kosta mer än både ett tomt pass och de
+  //    timmar passet ger (ett pass är cirka 7,5 h × 400 + 1 500), så att motorn aldrig byter vila mot bemanning eller timmar.
+  //    Under huvudsökningen kostar ett brott mindre (lawSearch), så att sökningen kan passera genom ett brott och
+  //    reparera det. Före slutfasen gäller full vikt (strictLaw), så inget brott finns kvar i det färdiga schemat.
+  rest:20000,weekRest:20000,lawSearch:2500,
+  // 2. Bemanning: ett tomt vardagspass och ett tomt helgpass (tomma helgpass går till vikarie).
+  holeWd:1500,holeWe:600,
+  // 3. Exakta timmar, per timme fel. Mer än ungefär ett extra pass i övertid per period blir dyrare än ett tomt pass.
+  hUnder:400,hOver:120,otTol:480,hOverHard:500,
+  // 4. Helger: en arbetshelg utan pass, ett pass under en ledig helg, olika slags pass lördag och söndag.
+  wkMiss:600,wkWrong:600,wkMix:6,
+  // 5. Återhämtning: sexdagarsveckor, långa arbetsperioder, ensamma lediga dagar, vila runt ledigheten, jämna veckor.
+  sixWeek:150,sixSoft:15,sixRoll:30,longRun:160,run7:800,singleOff:150,block:10,isolated:8,switch:3,edge:4,edgeWk:16,weekVar:.3,weekOver:25,
+  // 6. Övrigt: hemgruppen, rättvis fördelning av passtyper och kvällar, önskad ledighet, få pass och få flyttar vid ändring.
+  away:50,fair:2,fairType:1.5,prefShift:.3,wish:100,shift:10,stab:12};
+// Den enda verkliga avvägningen i motorn. Personalens timmar och antalet pass är fasta, så färre arbetsdagar för
+// heltidare betyder att timmarna räcker till färre pass, och det som blir tomt är helgpass.
+const BALANCE={vikarie:{wkMiss:1500,sixWeek:80},balans:{},sexdagar:{wkMiss:250,sixWeek:300,sixRoll:60}};
+const BALANCE_LABEL={vikarie:'Färre vikariepass',balans:'Balanserat',sexdagar:'Färre långa veckor'};
+const LEND_LABEL={aldrig:'Aldrig',behov:'Vid behov',fritt:'Fritt'};
+
+function pad(n){return String(n).padStart(2,'0')}
+function hm(s){const a=String(s||'0:0').split(':').map(Number);return (a[0]||0)*60+(a[1]||0)}
+// Klockslag. Ett nattpass slutar efter midnatt och har sluttid över 24:00, som visas som tiden nästa dag.
+function clock(m){return m>1440?m-1440:m}
+function fmtHM(m){m=clock(m);return pad(Math.floor(m/60))+':'+pad(m%60)}
+function fmtShort(m){m=clock(m);return pad(Math.floor(m/60))+(m%60?':'+pad(m%60):'')}
+// Passets längd i minuter. Slutar passet före eller när det börjar går det över midnatt.
+function spanMin(a,b){const s=hm(a),e=hm(b);return e>s?e-s:e+1440-s;}
+// Är tiderna tillåtna? Utan nattpass ska passet ligga mellan 05 och 24. Med nattpass får det gå över midnatt.
+function okVariant(a,b,night){const s=hm(a),e=hm(b);if(!night)return e>s&&s>=300;return spanMin(a,b)<=MAX_SPAN;}
+function fmtDur(m){m=Math.round(m);const s=m<0?'−':'';m=Math.abs(m);return s+Math.floor(m/60)+(m%60?':'+pad(m%60):'')}
+function h1(min){return (min/60).toFixed(1).replace('.',',')}
+function fmtH(h){return String(h).replace('.',',')}
+// Pass sparas som "typ.variant@grupp", till exempel "t1.0@g2". Gruppen kan saknas i äldre låsningar.
+function parseCode(c){const m=/^([a-z][a-z0-9]{0,15})\.(\d{1,2})(?:@([a-z][a-z0-9]{0,15}))?$/.exec(String(c||''));return m?{t:m[1],i:+m[2],g:m[3]||null,k:m[1]+'.'+m[2]}:null;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+// Tål "75%", "37,5", " 80 " och liknande från inmatning eller Excel.
+function num(v,def){if(typeof v==='number'&&isFinite(v))return v;const s=String(v??'').replace(/[%\s ]/g,'').replace(',','.');const n=parseFloat(s);return isFinite(n)?n:def;}
+// Tål "6.45", "06,45", "645", "6:45" och "14". Returnerar "HH:MM" eller null. "24:00" tillåts som slut.
+function parseTime(v){const s=String(v??'').trim().replace(/[.,]/g,':');let m=s.match(/^(\d{1,2}):(\d{2})$/)||s.match(/^(\d{1,2})(\d{2})$/);
+  if(!m){const h=s.match(/^(\d{1,2})$/);if(h)m=[0,h[1],'00'];}
+  if(!m)return null;const h=+m[1],mi=+m[2];if(h===24&&mi===0)return '24:00';if(h>23||mi>59)return null;return pad(h)+':'+pad(mi);}
+// Textfärg som syns mot passfärgen.
+function onColor(hex){const n=parseInt(String(hex).slice(1),16);if(!isFinite(n))return '#071013';const r=n>>16&255,g=n>>8&255,b=n&255;
+  return (0.299*r+0.587*g+0.114*b)>150?'#071013':'#ffffff';}
+const cleanId=v=>String(v??'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,16);
+
+// Passtyper att börja med. Tiderna ändras under Inställningar.
+const TEMPLATES={
+  standard:{label:'Tidig, dag, kväll och sen',types:[
+    {id:'t1',name:'Tidig',color:'#f1a238',eve:false,variants:[['06:45','14:00'],['06:45','14:30'],['06:45','15:00']]},
+    {id:'t2',name:'Dag',color:'#f8dcae',eve:false,variants:[['07:00','14:00'],['07:00','15:00']]},
+    {id:'t3',name:'Kväll',color:'#cfe1f3',eve:true,variants:[['13:00','21:00'],['14:00','21:00'],['15:00','21:00']]},
+    {id:'t4',name:'Sen',color:'#3b5b8c',eve:true,variants:[['13:15','21:30'],['14:00','21:30'],['15:00','21:30']]}],
+    demand:{weekday:{t1:2,t2:2,t3:2,t4:2},weekend:{t1:2,t2:2,t3:2,t4:2}},night:false},
+  natt:{label:'Dag, kväll och natt',types:[
+    {id:'t1',name:'Dag',color:'#f1a238',eve:false,variants:[['07:00','15:00'],['07:00','15:30'],['07:00','16:00']]},
+    {id:'t2',name:'Kväll',color:'#cfe1f3',eve:true,variants:[['14:00','21:30'],['14:30','21:30'],['15:00','21:45']]},
+    {id:'t3',name:'Natt',color:'#3b5b8c',eve:true,variants:[['21:15','07:15'],['21:30','07:15']]}],
+    demand:{weekday:{t1:4,t2:3,t3:1},weekend:{t1:3,t2:3,t3:1}},night:true}};
+const cp=o=>JSON.parse(JSON.stringify(o));
+// Ett tomt upplägg: verksamhetens namn, avdelningar med grupper och en mall för passtyperna. Ingen personal.
+function blank(orgName,units,template){
+  const tp=TEMPLATES[template]||TEMPLATES.standard,demand={};
+  units.forEach(u=>u.groups.forEach(g=>demand[g.id]=cp(tp.demand)));
+  return {v:7,example:false,stale:false,savedAt:null,
+    settings:{orgName:orgName||'',accent:ACCENTS[0][0],weeks:6,fullTime:37,breakMin:30,units:cp(units),types:cp(tp.types),demand,
+      rules:Object.assign({},RULES,{night:tp.night}),iterations:3000000},
+    staff:[],wishes:{},locks:{},schedule:null};
+}
+// Demodata: två avdelningar med två grupper var och 14 påhittade personer per grupp.
+function defaults(){
+  const names=[
+    ['Anna L','Bertil K','Cecilia M','David S','Elin J','Fatima A','Gustav N','Hanna P','Ida R','Jamal H','Karin Ö','Lena B','Maria T','Nils W'],
+    ['Olle G','Petra H','Qasim R','Rut A','Sven E','Tove L','Ulf N','Vanja K','William F','Yasmin D','Zara B','Åke M','Ängla S','Örjan P'],
+    ['Rosa C','Sara D','Tomas F','Ulla I','Vera Q','Yusuf Z','Åsa V','Amir M','Britt L','Camilla S','Dragan P','Emma K','Filip R','Greta N'],
+    ['Hampus T','Irma J','Jonas W','Klara E','Leo H','Mira A','Noah B','Oskar L','Pia N','Roger S','Selma K','Tilda R','Ture M','Vilma O']];
+  // Avdelning 1 har fler pass per dag än avdelning 2, så tjänstgöringsgraderna är lite högre där.
+  const pcts=[[100,100,90,90,85,85,80,80,75,75,75,75,65,50],[100,90,90,85,80,75,75,75,70,65,65,60,55,50]];
+  const groups=['g1','g2','g3','g4'],staff=[];let n=0;
+  names.forEach((list,gi)=>list.forEach((nm,i)=>{n++;staff.push({id:'s'+n,name:nm,pct:pcts[gi<2?0:1][i],group:groups[gi],wg:i%2?'B':'A',
+    pref:{3:'dag',8:'kvall'}[i]||'',types:null,earliest:null,latest:null,maxLen:null,groups:null});}));
+  const S=blank('',[{id:'u1',name:'Avdelning 1',groups:[{id:'g1',name:'Grupp A'},{id:'g2',name:'Grupp B'}]},{id:'u2',name:'Avdelning 2',groups:[{id:'g3',name:'Grupp C'},{id:'g4',name:'Grupp D'}]}],'standard');
+  S.settings.demand.g1.weekday.t2=3;S.settings.demand.g2.weekday.t2=3;
+  return Object.assign(S,{example:true,staff,wishes:{s5:{'4':'L'},s10:{'16':'L','17':'L'},s31:{'22':'L'},s47:{'25':'L'}}});
+}
+
+/* Gör sparad eller importerad data säker att räkna på. Ogiltiga värden ersätts med standard. */
+function normalize(S){
+  const D=defaults();
+  if(!S||typeof S!=='object')return D;
+  const st=S.settings&&typeof S.settings==='object'?S.settings:{},d=D.settings,o={};
+  const r=st.rules&&typeof st.rules==='object'?st.rules:{};
+  const rn=(v,lo,hi,def,step)=>{const x=num(v,def);return isFinite(x)?Math.max(lo,Math.min(hi,Math.round(x/step)*step)):def;};
+  o.rules={dailyRest:rn(r.dailyRest,8,13,RULES.dailyRest,.5),weeklyRest:rn(r.weeklyRest,24,60,RULES.weeklyRest,1),night:!!r.night,
+    wkEvery:[2,3,4].includes(+r.wkEvery)?+r.wkEvery:2,maxRow:rn(r.maxRow,3,7,RULES.maxRow,1),maxWeekDays:rn(r.maxWeekDays,4,7,RULES.maxWeekDays,1),
+    maxWeekPct:rn(r.maxWeekPct,5,100,RULES.maxWeekPct,1),lend:LEND_LABEL[r.lend]?r.lend:'behov',fillWeekend:!!r.fillWeekend,balance:BALANCE[r.balance]?r.balance:'balans'};
+  const wo=weekOptions(o.rules.wkEvery),wk=Math.round(num(st.weeks,6));o.weeks=wo.includes(wk)?wk:(wo.find(x=>x>=wk)||wo[wo.length-1]);
+  o.fullTime=Math.min(45,Math.max(20,Math.round(num(st.fullTime,37)*4)/4));
+  o.breakMin=Math.max(0,Math.min(60,Math.round(num(st.breakMin,d.breakMin))));o.iterations=d.iterations;
+  o.orgName=String(st.orgName??'').replace(/\s+/g,' ').trim().slice(0,60);
+  o.accent=/^#[0-9a-f]{6}$/i.test(st.accent)?st.accent.toLowerCase():ACCENTS[0][0];
+  // avdelningar och grupper
+  const ids=new Set(),uid=(v,pre)=>{let id=cleanId(v);if(!/^[a-z]/.test(id))id='';if(!id||ids.has(id)){let i=1;while(ids.has(pre+i))i++;id=pre+i;}ids.add(id);return id;};
+  const units=(Array.isArray(st.units)?st.units:[]).filter(u=>u&&typeof u==='object').slice(0,8).map(u=>({id:uid(u.id,'u'),name:String(u.name??'').replace(/\s+/g,' ').trim().slice(0,30)||'Avdelning',
+    groups:(Array.isArray(u.groups)?u.groups:[]).filter(g=>g&&typeof g==='object').slice(0,8).map(g=>({id:uid(g.id,'g'),name:String(g.name??'').replace(/\s+/g,' ').trim().slice(0,12)||'Grupp'}))})).filter(u=>u.groups.length);
+  o.units=units.length?units:JSON.parse(JSON.stringify(d.units));
+  const gids=[];o.units.forEach(u=>u.groups.forEach(g=>gids.push(g.id)));const gset=new Set(gids);
+  const unitOf={};o.units.forEach(u=>u.groups.forEach(g=>unitOf[g.id]=u.id));
+  // passtyper med tillåtna tider
+  const tids=new Set();
+  const types=(Array.isArray(st.types)?st.types:[]).filter(t=>t&&typeof t==='object').slice(0,10).map((t,i)=>{
+    let id=cleanId(t.id);if(!/^[a-z]/.test(id)||tids.has(id)||ids.has(id)){let k=1;while(tids.has('t'+k)||ids.has('t'+k))k++;id='t'+k;}
+    const vs=(Array.isArray(t.variants)?t.variants:[]).slice(0,12).map(x=>Array.isArray(x)?[parseTime(x[0]),parseTime(x[1])]:[null,null])
+      .filter(x=>x[0]&&x[1]&&x[0]!=='24:00'&&okVariant(x[0],x[1],o.rules.night));
+    if(!vs.length)return null;tids.add(id);
+    return {id,name:String(t.name??'').replace(/\s+/g,' ').trim().slice(0,20)||'Pass',color:/^#[0-9a-f]{6}$/i.test(t.color)?t.color.toLowerCase():PALETTE[i%PALETTE.length],
+      // äldre data saknar uppgiften om kvällspass; då gissas den från tiderna en gång
+      eve:typeof t.eve==='boolean'?t.eve:vs.filter(x=>hm(x[1])>18*60).length*2>=vs.length,variants:vs};}).filter(Boolean);
+  o.types=types.length?types:JSON.parse(JSON.stringify(d.types));
+  const tset=new Set(o.types.map(t=>t.id));
+  o.demand={};
+  gids.forEach(g=>{o.demand[g]={};['weekday','weekend'].forEach(w=>{o.demand[g][w]={};
+    o.types.forEach(t=>{const src=st.demand&&st.demand[g]&&st.demand[g][w]?st.demand[g][w][t.id]:undefined;
+      o.demand[g][w][t.id]=Math.max(0,Math.min(20,Math.round(num(src,0))));});});});
+  const out={v:7,example:!!S.example,stale:!!S.stale,savedAt:typeof S.savedAt==='string'?S.savedAt:null,settings:o,staff:[],wishes:{},locks:{},schedule:null};
+  const seen=new Set();
+  (Array.isArray(S.staff)?S.staff:[]).forEach((x,i)=>{if(!x||typeof x!=='object')return;
+    let id=String(x.id||'').replace(/[^\w-]/g,'');if(!id||seen.has(id))id='p'+i+'x'+Math.random().toString(36).slice(2,7);seen.add(id);
+    const group=gset.has(x.group)?x.group:gids[0];
+    const tl=Array.isArray(x.types)?x.types.filter(t=>tset.has(t)):null;
+    const gl=Array.isArray(x.groups)?x.groups.filter(g=>gset.has(g)&&g!==group&&unitOf[g]===unitOf[group]):null;
+    const ml=x.maxLen==null||x.maxLen===''?null:Math.round(num(x.maxLen,NaN));
+    out.staff.push({id,name:String(x.name??'').replace(/\s+/g,' ').trim().slice(0,60)||'Namnlös',
+      pct:Math.max(5,Math.min(100,Math.round(num(x.pct,100)))),group,wg:WG[wgIndex(x,o.rules.wkEvery)],pref:x.pref==='dag'||x.pref==='kvall'?x.pref:'',
+      types:tl&&tl.length&&tl.length<o.types.length?tl:null,earliest:parseTime(x.earliest),latest:parseTime(x.latest),
+      maxLen:isFinite(ml)&&ml>=60&&ml<=720?ml:null,groups:gl});});
+  const sids=new Set(out.staff.map(x=>x.id));
+  const okCode=v=>{const c=parseCode(v);if(!c)return false;const t=o.types.find(y=>y.id===c.t);return !!t&&c.i<t.variants.length&&(!c.g||gset.has(c.g));};
+  const copyMap=(src,dst,okVal)=>{if(!src||typeof src!=='object')return;Object.keys(src).forEach(id=>{if(!sids.has(id)||!src[id]||typeof src[id]!=='object')return;
+    const o2={};Object.keys(src[id]).forEach(k=>{if(/^\d+$/.test(k)&&+k<o.weeks*7&&okVal(src[id][k]))o2[k]=src[id][k];});dst[id]=o2;});};
+  copyMap(S.wishes,out.wishes,v=>v==='L');
+  copyMap(S.locks,out.locks,v=>v==='-'||okCode(v));
+  if(S.schedule&&typeof S.schedule==='object'){out.schedule={};copyMap(S.schedule,out.schedule,okCode);}
+  return out;
+}
+
+let M=null, RNG=Math.random;
+
+function buildModel(S){
+  const st=S.settings,r=st.rules;
+  // vikterna för den här modellen: standard plus valt läge för avvägningen mellan helger och sexdagarsveckor
+  const w=Object.assign({},W,BALANCE[r.balance]||{});
+  w.lawFull=w.rest;w.rest=w.weekRest=w.lawSearch;
+  // fri utlåning inom avdelningen kostar nästan inget; aldrig utlåning stängs av helt längre ner
+  if(r.lend==='fritt')w.away=5;
+  const WK=st.weeks,N=WK*7;
+  const days=[];for(let d=0;d<N;d++)days.push({d,dow:d%7,w:Math.floor(d/7),we:d%7>=5});
+  // grupperna i en platt lista; varje grupp vet sin avdelning
+  const G=[],U=st.units.map((u,ui)=>({id:u.id,name:u.name,groups:[]})),gIdx={};
+  st.units.forEach((u,ui)=>u.groups.forEach(g=>{gIdx[g.id]=G.length;U[ui].groups.push(G.length);G.push({id:g.id,name:g.name,unit:ui});}));
+  const T=st.types,nT=T.length,tIdx={};T.forEach((t,i)=>tIdx[t.id]=i);
+  const V=[],byKind=T.map(()=>[]),codeIdx={};
+  // ett nattpass får sluttid efter 24:00, så att vilan räknas rätt mot nästa dags pass
+  T.forEach((t,ti)=>t.variants.forEach((x,i)=>{const a=hm(x[0]),b=a+spanMin(x[0],x[1]),gross=b-a;codeIdx[t.id+'.'+i]=V.length;byKind[ti].push(V.length);
+    V.push({kind:ti,code:t.id+'.'+i,st:a,en:b,gross,net:Math.max(0,gross-(gross>BREAK_AFTER?st.breakMin:0))});}));
+  const nV=V.length;
+  const sh={V,byKind,codeIdx,st:Int16Array.from(V,x=>x.st),en:Int16Array.from(V,x=>x.en),net:Int16Array.from(V,x=>x.net),
+    kind:Uint8Array.from(V,x=>x.kind),eve:Uint8Array.from(V,x=>T[x.kind].eve?1:0)};
+  const typeEve=T.map(t=>t.eve?1:0);
+  // vila runt ledigheten mäts mot de tidigaste sluttiderna och senaste starttiderna som finns bland passen
+  const minEnd=nV?Math.min(...V.map(x=>x.en)):0,maxStart=nV?Math.max(...V.map(x=>x.st)):0;
+  const staff=S.staff,P=staff.length;
+  const home=new Int16Array(P),unit=new Int16Array(P);
+  staff.forEach((x,p)=>{home[p]=gIdx[x.group]??0;unit[p]=G[home[p]].unit;});
+  // personliga begränsningar: grupper, passtyper och tider
+  const allowG=new Uint8Array(P*G.length),allowV=new Uint8Array(P*nV),av=[];
+  staff.forEach((x,p)=>{
+    if(r.lend!=='aldrig'){if(x.groups===null)U[unit[p]].groups.forEach(g=>allowG[p*G.length+g]=1);else x.groups.forEach(id=>{const g=gIdx[id];if(g!==undefined&&G[g].unit===unit[p])allowG[p*G.length+g]=1;});}
+    allowG[p*G.length+home[p]]=1;
+    // utan "slutar senast" finns ingen gräns, så att nattpass som slutar nästa morgon går att ta
+    const tset=x.types?new Set(x.types):null,e0=x.earliest?hm(x.earliest):0,l0=x.latest?hm(x.latest):1e9,ml=x.maxLen||1e9;
+    const lists=T.map(()=>[]);
+    for(let v=0;v<nV;v++){const t=T[sh.kind[v]];if(tset&&!tset.has(t.id))continue;if(sh.st[v]<e0||sh.en[v]>l0||V[v].gross>ml)continue;allowV[p*nV+v]=1;lists[sh.kind[v]].push(v);}
+    av.push(lists);});
+  const absent=new Uint8Array(P*N),wish=new Uint8Array(P*N),lock=new Int16Array(P*N).fill(-2),lockG=new Int16Array(P*N).fill(-1),fixed=new Uint8Array(P*N);
+  staff.forEach((x,p)=>{const wi=S.wishes[x.id]||{},lk=S.locks[x.id]||{},sc=(S.schedule&&S.schedule[x.id])||{};
+    for(let d=0;d<N;d++){const i=p*N+d,k=String(d);if(wi[k]==='L')wish[i]=1;
+      if(lk[k]!==undefined){if(lk[k]==='-')lock[i]=-1;else{const pc=parseCode(lk[k]);if(pc&&codeIdx[pc.k]!==undefined){lock[i]=codeIdx[pc.k];
+        // gruppen: från låsningen, annars där passet låg senast, annars hemgruppen, så att det inte hoppar
+        let g=pc.g?gIdx[pc.g]:undefined;if(g===undefined){const sp=parseCode(sc[k]);if(sp&&sp.k===pc.k&&sp.g)g=gIdx[sp.g];}lockG[i]=g===undefined?home[p]:g;}}}}});
+  const wkWork=new Uint8Array(P*WK);
+  // helgrytm: med varannan helg arbetar lag A vecka 1, 3, 5 och lag B vecka 2, 4, 6; med var tredje finns tre lag
+  const E=r.wkEvery;staff.forEach((x,p)=>{const k=wgIndex(x,E);for(let w=0;w<WK;w++)wkWork[p*WK+w]=w%E===k?1:0});
+  const slots=[],byDay=Array.from({length:N},()=>[]);
+  const add=(d,g,kind,req,extra)=>{const s=slots.length;slots.push({d,g,unit:G[g].unit,kind,req:!!req,extra:!!extra,we:days[d].we});byDay[d].push(s);return s};
+  for(let d=0;d<N;d++){const wk=days[d].we?'weekend':'weekday';
+    G.forEach((g,gi)=>{const dm=st.demand[g.id]&&st.demand[g.id][wk]||{};T.forEach((t,ti)=>{const n=dm[t.id]|0;for(let j=0;j<n;j++)add(d,gi,ti,true,false);});});}
+  // avdelningens fördelning av passtyper ger varje persons rättvisa andel, räknad på de typer personen kan ta
+  const mixU=U.map((u,ui)=>{const c=new Float64Array(nT);slots.forEach(sl=>{if(sl.req&&sl.unit===ui)c[sl.kind]++;});return c;});
+  const targetMin=new Int32Array(P),wkCap=new Float64Array(P),
+    shareE=new Float32Array(P),shareT=new Float32Array(P*nT),pref=new Uint8Array(P),sixAllow=new Int16Array(P);
+  // Hur långt ett pass kan vara i snitt när man väljer de längsta tiderna. Behöver någon fler arbetsdagar än
+  // målet per vecka för att få sina timmar ens då, är de extra dagarna oundvikliga och kostar inget.
+  staff.forEach((x,p)=>{
+    targetMin[p]=Math.round(x.pct/100*st.fullTime*60*WK/15)*15;
+    wkCap[p]=targetMin[p]/WK*(1+(r.maxWeekPct||0)/100);
+    const longs=av[p].map(L=>L.length?Math.max(...L.map(v=>sh.net[v])):0).filter(v=>v>0);
+    const longNet=longs.length?longs.reduce((a,v)=>a+v,0)/longs.length:480;
+    sixAllow[p]=Math.max(0,Math.ceil(targetMin[p]/longNet)-r.maxWeekDays*WK);
+    const can=av[p].map(L=>L.length>0);
+    const canEve=can.some((c,ti)=>c&&typeEve[ti]);
+    pref[p]=x.pref==='dag'?1:x.pref==='kvall'?2:0;
+    const c=mixU[unit[p]];let tot=0;T.forEach((t,ti)=>{if(can[ti])tot+=c[ti];});
+    let e=0;T.forEach((t,ti)=>{const sh2=can[ti]&&tot?c[ti]/tot:0;shareT[p*nT+ti]=sh2;if(typeEve[ti])e+=sh2;});
+    shareE[p]=canEve?Math.max(.05,Math.min(.95,e+(pref[p]===1?-w.prefShift:pref[p]===2?w.prefShift:0))):0;
+  });
+  // låsta pass får sin plats först, annars skapas en extra plats (till exempel ett lån till en annan avdelning)
+  const lockPairs=[];
+  for(let p=0;p<P;p++)for(let d=0;d<N;d++){const l=lock[p*N+d];if(l===-2)continue;fixed[p*N+d]=1;if(l<0)continue;
+    const kd=sh.kind[l],g=lockG[p*N+d];
+    let s=byDay[d].find(s=>slots[s].kind===kd&&!slots[s].taken&&slots[s].g===g);
+    if(s===undefined)s=add(d,g,kd,false,true);
+    slots[s].taken=1;lockPairs.push([s,p,l]);}
+  const nS=slots.length;
+  const elig=[],eligM=new Uint8Array(nS*P);
+  for(let s=0;s<nS;s++){const sl=slots[s],L=[];
+    if(!sl.extra)for(let p=0;p<P;p++){const i=p*N+sl.d;if(fixed[i])continue;
+      if(sl.we&&!wkWork[p*WK+days[sl.d].w])continue;
+      if(!allowG[p*G.length+sl.g]||!av[p][sl.kind].length)continue;
+      L.push(p);eligM[s*P+p]=1;}
+    elig.push(L);}
+  const holeWe=r.fillWeekend?w.holeWd:w.holeWe;
+  const cov=Float32Array.from(slots,sl=>sl.req?(sl.we?holeWe:w.holeWd):0);
+  M={S,N,WK,P,days,sh,nV,T,nT,typeEve,G,U,gIdx,tIdx,staff,home,unit,allowG,allowV,av,absent,wish,lock,fixed,wkWork,targetMin,wkCap,sixAllow,shareE,shareT,pref,minEnd,maxStart,
+    slots,byDay,nS,elig,eligM,cov,w,rules:r,dailyRest:r.dailyRest*60,weeklyRest:r.weeklyRest*60,maxRow:r.maxRow,maxWD:r.maxWeekDays,
+    row:Array.from({length:P},()=>new Int16Array(N).fill(-1)),gridS:new Int32Array(Math.max(1,P*N)).fill(-1),slotP:new Int32Array(Math.max(1,nS)).fill(-1),slotV:new Int16Array(Math.max(1,nS)).fill(-1),
+    pen:new Float64Array(P),total:0,tmp:new Float64Array(WK),ctx:{wk:new Float64Array(WK),wc:new Int8Array(WK),tc:new Int16Array(Math.max(1,nT))},base:null,stabW:w.stab};
+  for(const [s,p,v] of lockPairs)assign(s,p,v);
+  return M;
+}
+function assign(s,p,v){const sl=M.slots[s];M.slotP[s]=p;M.slotV[s]=v;M.gridS[p*M.N+sl.d]=s;M.row[p][sl.d]=v}
+function unassign(s){const p=M.slotP[s];if(p<0)return;const d=M.slots[s].d;M.slotP[s]=-1;M.slotV[s]=-1;M.gridS[p*M.N+d]=-1;M.row[p][d]=-1}
+// En tid som personen får jobba för passtypen: den önskade om den är tillåten, annars en slumpad tillåten.
+function fitV(q,kind,v){const m=M;if(v>=0&&m.allowV[q*m.nV+v])return v;const L=m.av[q][kind];return L.length?L[(RNG()*L.length)|0]:-1;}
+
+function warmStart(rows){
+  if(!rows)return;const m=M;
+  for(let p=0;p<m.P;p++){const r=rows[m.staff[p].id];if(!r)continue;
+    for(let d=0;d<m.N;d++){if(m.fixed[p*m.N+d]||m.gridS[p*m.N+d]>=0)continue;const pc=parseCode(r[d]);if(!pc)continue;const v0=m.sh.codeIdx[pc.k];if(v0===undefined)continue;
+      const kd=m.sh.kind[v0],v=fitV(p,kd,v0);if(v<0)continue;const g=pc.g?m.gIdx[pc.g]:m.home[p];
+      const ok=s=>m.slots[s].kind===kd&&m.slotP[s]<0&&m.eligM[s*m.P+p];
+      let s=m.byDay[d].find(s=>ok(s)&&m.slots[s].g===g);if(s===undefined)s=m.byDay[d].find(ok);
+      if(s!==undefined)assign(s,p,v);}}
+}
+function baseFrom(rows){const m=M,b=new Int32Array(Math.max(1,m.P*m.N)).fill(-1);if(!rows)return b;
+  for(let p=0;p<m.P;p++){const r=rows[m.staff[p].id];if(!r)continue;for(let d=0;d<m.N;d++){const pc=parseCode(r[d]);const v=pc?m.sh.codeIdx[pc.k]:undefined;
+    if(v!==undefined){const g=pc.g&&m.gIdx[pc.g]!==undefined?m.gIdx[pc.g]:m.home[p];b[p*m.N+d]=(v+1)*64+g;}}}
+  return b;}
+function extract(){const rows={};const m=M;
+  for(let p=0;p<m.P;p++){const o={};for(let d=0;d<m.N;d++){const v=m.row[p][d];if(v<0)continue;const g=m.slots[m.gridS[p*m.N+d]].g;o[d]=m.sh.V[v].code+'@'+m.G[g].id;}rows[m.staff[p].id]=o;}
+  return rows;}
+
+function I(sev,d,text,extra){return Object.assign({sev,d,text},extra||{})}
+
+/* ---------- Regler ----------
+   pScore ger straffpoäng för en persons rad, lägre är bättre. Den räknar först ihop raden en gång (tally) och
+   summerar sedan reglerna nedan, i prioritetsordning. Varje regel lägger till poäng och skriver, när out finns,
+   en förklaring i klartext. Bemanningen räknas utanför personen, i computeAll och i flyttarna. */
+function pScore(p,out){
+  const c=M.ctx;tally(p,c);
+  const pen=lawDailyRest(p,c,out)+lawWeeklyRest(p,c,out)+hours(p,c,out)+weekends(p,c,out)+workDays(p,c,out)
+    +restAroundOff(p,c,out)+evenWeeks(p,c,out)+fairness(p,c,out)+other(p,c,out);
+  if(out)out.stats={n:c.n,ev:c.ev,day:c.day,mins:c.mins,away:c.away,typeCount:Array.from(c.tc),minGap:c.minGap,minWeek:c.minWeek,maxWeek:c.maxWeek,
+    maxRun:c.maxRun,singles:c.singles,blocks:c.blocks,freeInBlocks:c.freeInBlocks,free:M.N-c.n,wkMissing:c.wkMissing,sixWeeks:c.sixWeeks,
+    edges:c.edges,edgeRest:c.edgeRest,wkRestMin:c.wkRestMin,wkRestSum:c.wkRestSum,wkRestN:c.wkRestN,weeks:Array.from(c.wk)};
+  return pen;
+}
+// En genomgång av raden: antal pass, kvällar, timmar per vecka, dagar per vecka, pass per typ och pass utanför hemgruppen.
+function tally(p,c){
+  const m=M,N=m.N,row=m.row[p],sh=m.sh,b=p*N,hg=m.home[p];
+  c.wk.fill(0);c.wc.fill(0);c.tc.fill(0);c.n=0;c.ev=0;c.day=0;c.mins=0;c.away=0;
+  for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;const w=(d/7)|0;
+    c.n++;c.mins+=sh.net[v];c.wk[w]+=sh.net[v];c.wc[w]++;c.tc[sh.kind[v]]++;
+    if(sh.eve[v])c.ev++;else c.day++;
+    if(m.slots[m.gridS[b+d]].g!==hg)c.away++;}
+}
+// 1. Dygnsvila, arbetstidslagen 13 §: minst 11 timmar (eller avtalets gräns) mellan två pass, även när grundschemat börjar om.
+function lawDailyRest(p,c,out){
+  const m=M,N=m.N,row=m.row[p],sh=m.sh,w=m.w;let pen=0;c.minGap=1e9;
+  for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;const pv=row[(d+N-1)%N];if(pv<0)continue;
+    const gap=1440+sh.st[v]-sh.en[pv];if(gap<c.minGap)c.minGap=gap;
+    if(gap<m.dailyRest){pen+=w.rest;out&&out.push(I('hard',d,`För kort dygnsvila, ${h1(gap)} h (minst ${fmtH(m.rules.dailyRest)} h)`));}}
+  return pen;
+}
+// 1. Veckovila, arbetstidslagen 14 §: längsta sammanhängande vila INOM varje kalendervecka, måndag 00 till söndag 24.
+//    Vila som sträcker sig över veckoskiftet räknas bara med den del som ligger i veckan.
+function lawWeeklyRest(p,c,out){
+  const m=M,N=m.N,WK=m.WK,row=m.row[p],sh=m.sh,w=m.w,best=m.tmp;best.fill(0);let first=-1,prevEnd=0,pen=0;
+  const gapRec=(a,bb)=>{const w0=Math.floor(a/10080),w1=Math.floor((bb-1)/10080);
+    for(let k=w0;k<=w1;k++){const ws=k*10080,len=Math.min(bb,ws+10080)-Math.max(a,ws),ww=((k%WK)+WK)%WK;if(len>best[ww])best[ww]=len;}};
+  for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;const s=d*1440+sh.st[v];if(first<0)first=s;else gapRec(prevEnd,s);prevEnd=d*1440+sh.en[v];}
+  if(first>=0)gapRec(prevEnd,first+N*1440);else best.fill(10080);
+  c.minWeek=1e9;
+  for(let k=0;k<WK;k++){if(best[k]<c.minWeek)c.minWeek=best[k];
+    if(best[k]<m.weeklyRest){pen+=w.weekRest;out&&out.push(I('hard',k*7,`För kort veckovila vecka ${k+1}, ${h1(best[k])} h (minst ${fmtH(m.rules.weeklyRest)} h)`,{w:k}));}}
+  return pen;
+}
+// 3. Exakta timmar för perioden.
+function hours(p,c,out){
+  const m=M,w=m.w,tg=m.targetMin[p],dev=c.mins-tg;let pen=0;
+  if(dev>w.otTol)pen+=w.hOverHard*(dev-w.otTol)/60;
+  if(dev!==0){pen+=(dev>0?w.hOver:w.hUnder)*Math.abs(dev)/60;if(out&&Math.abs(dev)>=15)out.push(I('soft',-1,`Har ${fmtDur(c.mins)} h, ska ha ${fmtDur(tg)} h`));}
+  return pen;
+}
+// 4. Varannan helg: arbetshelgen har pass både lördag och söndag, den lediga helgen är helt ledig.
+function weekends(p,c,out){
+  const m=M,N=m.N,WK=m.WK,row=m.row[p],sh=m.sh,w=m.w,b=p*N;let pen=0;
+  c.wkMissing=0;c.wkRestMin=1e9;c.wkRestSum=0;c.wkRestN=0;
+  for(let k=0;k<WK;k++){const sa=k*7+5,su=sa+1;
+    if(m.wkWork[p*WK+k]){let miss=0;
+      if(row[sa]<0&&m.lock[b+sa]!==-1)miss++;
+      if(row[su]<0&&m.lock[b+su]!==-1)miss++;
+      if(miss){pen+=w.wkMiss*miss;c.wkMissing+=miss;out&&out.push(I('soft',sa,`Arbetshelg vecka ${k+1} saknar pass ${miss} dag${miss>1?'ar':''}`));}
+      if(row[sa]>=0&&row[su]>=0&&sh.eve[row[sa]]!==sh.eve[row[su]])pen+=w.wkMix;}
+    else{
+      if(row[sa]>=0||row[su]>=0){pen+=w.wkWrong;out&&out.push(I('hard',row[sa]>=0?sa:su,`Har pass under sin lediga helg vecka ${k+1}`));}
+      // vilan under den lediga helgen räknas bara för visning
+      // bd och ad räknas utan att slå runt, så att vilan blir rätt även när helgen ligger sist eller först i perioden
+      if(out&&row[sa]<0&&row[su]<0){let bd=sa-1,ad=su+1,j=0;while(row[(bd+N)%N]<0&&j++<N)bd--;j=0;while(row[ad%N]<0&&j++<N)ad++;
+        const bv=row[(bd+N)%N],av2=row[ad%N];if(bv>=0&&av2>=0){const r=(ad*1440+sh.st[av2])-(bd*1440+sh.en[bv]);if(r<c.wkRestMin)c.wkRestMin=r;c.wkRestSum+=r;c.wkRestN++;}}}}
+  return pen;
+}
+// 5. Arbetsdagar: högst maxWD av sju, högst maxRow i rad (sju i rad undviks starkt), ledighet i block om minst två dagar,
+//    inga ensamma arbetsdagar och helst framåtrotation (dag före kväll). Sjättedagar som timmarna gör oundvikliga kostar inget.
+function workDays(p,c,out){
+  const m=M,N=m.N,WK=m.WK,row=m.row[p],sh=m.sh,w=m.w;let pen=0;
+  c.sixWeeks=0;let sixExtra=0;
+  const mx=m.maxWD;
+  for(let k=0;k<WK;k++)if(c.wc[k]>mx){c.sixWeeks++;sixExtra+=c.wc[k]-mx;out&&out.push(I('soft',k*7,`Arbetar ${c.wc[k]} dagar vecka ${k+1}`,{w:k}));}
+  const allow=m.sixAllow[p];
+  pen+=w.sixWeek*Math.max(0,sixExtra-allow)+w.sixSoft*sixExtra;
+  if(c.n>mx&&N>=7){let cnt=0,roll=0;for(let d=0;d<7;d++)if(row[d]>=0)cnt++;
+    for(let d=0;d<N;d++){if(cnt>mx)roll+=cnt-mx;if(row[d]>=0)cnt--;if(row[(d+7)%N]>=0)cnt++;}
+    pen+=w.sixRoll*Math.max(0,roll-3*allow);}
+  for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;const pv=row[(d+N-1)%N];
+    if(pv>=0){if(!sh.eve[pv]&&sh.eve[v])pen+=w.switch;}
+    else if(row[(d+1)%N]<0)pen+=w.isolated;}
+  // arbetsblock och ledighetsblock (cykliskt), med start på en dag som inleder en ledighet
+  let f=-1;for(let d=0;d<N;d++){if(row[d]<0&&row[(d+N-1)%N]>=0){f=d;break;}}
+  c.singles=0;c.blocks=0;c.freeInBlocks=0;c.maxRun=0;
+  const runEnd=(run,d)=>{c.blocks++;if(run>c.maxRun)c.maxRun=run;
+    if(run>m.maxRow){pen+=w.longRun*(run-m.maxRow)+w.run7*Math.max(0,run-m.maxRow-1);out&&out.push(I('soft',d,`Arbetar ${run} dagar i rad (mål högst ${m.maxRow})`));}};
+  const freeEnd=free=>{if(free===1){c.singles++;pen+=w.singleOff;}else c.freeInBlocks+=free;};
+  if(f<0){if(c.n===N&&N>0)runEnd(N,N-1);}
+  else{let run=0,free=0;
+    for(let k=0;k<N;k++){const d=(f+k)%N;
+      if(row[d]<0){if(run>0){runEnd(run,(d+N-1)%N);run=0;}free++;}
+      else{if(free>0){freeEnd(free);free=0;}run++;}}
+    if(run>0)runEnd(run,(f+N-1)%N);
+    if(free>0)freeEnd(free);}
+  pen+=w.block*c.blocks;
+  return pen;
+}
+// 5. Vila runt ledigheten: ju tidigare sista passet före en ledighet slutar och ju senare första passet efter börjar,
+//    desto fler timmar blir ledigheten. Varje förlorad timme kostar, mätt mot passens tidigaste slut och senaste start.
+//    Dygnsvilan gör att ett arbetsblock inte kan gå från kväll till dag, så alla ledigheter kan inte få både och.
+//    Kanterna runt en ledig helg väger tyngst.
+function restAroundOff(p,c,out){
+  const m=M,N=m.N,WK=m.WK,row=m.row[p],sh=m.sh,w=m.w;let pen=0;c.edges=0;c.edgeRest=0;
+  for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;
+    if(row[(d+1)%N]<0){c.edges++;c.edgeRest+=1440-sh.en[v];let wt=w.edge;
+      if(d%7===4&&row[(d+2)%N]<0&&!m.wkWork[p*WK+(((d/7)|0)%WK)])wt+=w.edgeWk;pen+=wt*(sh.en[v]-m.minEnd)/60;}
+    if(row[(d+N-1)%N]<0){c.edges++;c.edgeRest+=sh.st[v];let wt=w.edge;const pw=(((d/7)|0)+WK-1)%WK;
+      if(d%7===0&&row[(d+N-2)%N]<0&&!m.wkWork[p*WK+pw])wt+=w.edgeWk;pen+=wt*(m.maxStart-sh.st[v])/60;}}
+  return pen;
+}
+// 5. Jämna veckor: timmarna sprids över perioden, ingen vecka mer än maxWeekPct över snittet.
+function evenWeeks(p,c,out){
+  const m=M,WK=m.WK,w=m.w,wt=m.targetMin[p]/WK,cap=m.wkCap[p];let pen=0;c.maxWeek=0;
+  for(let k=0;k<WK;k++){const x=(c.wk[k]-wt)/60;pen+=w.weekVar*x*x;if(c.wk[k]>c.maxWeek)c.maxWeek=c.wk[k];
+    if(c.wk[k]>cap+1){pen+=w.weekOver*(c.wk[k]-cap)/60;out&&out.push(I('soft',-1,`Vecka ${k+1} har ${fmtDur(c.wk[k])} h, högst ${fmtDur(Math.floor(cap/15)*15)} h`,{w:k}));}}
+  return pen;
+}
+// 6. Rättvis fördelning: varje person tar sin andel av avdelningens passtyper och kvällar, justerat för önskemål om dag eller kväll.
+function fairness(p,c,out){
+  const m=M,nT=m.nT,w=m.w;let pen=0;
+  for(let t=0;t<nT;t++){const dt=c.tc[t]-m.shareT[p*nT+t]*c.n;pen+=w.fairType*dt*dt;}
+  const dE=c.ev-m.shareE[p]*c.n;pen+=w.fair*dE*dE;
+  return pen;
+}
+// 6. Övrigt: hemgruppen, önskad ledighet, antal pass och, när ett schema anpassas, så få flyttar som möjligt.
+function other(p,c,out){
+  const m=M,N=m.N,row=m.row[p],w=m.w,b=p*N;let pen=w.away*c.away+w.shift*c.n;
+  for(let d=0;d<N;d++){if(row[d]>=0&&m.wish[b+d]){pen+=w.wish;out&&out.push(I('soft',d,'Har pass fast personen önskat ledigt'));}}
+  if(m.base){for(let d=0;d<N;d++){const v=row[d],key=v<0?-1:(v+1)*64+m.slots[m.gridS[b+d]].g;if(key!==m.base[b+d])pen+=m.stabW;}}
+  return pen;
+}
+// Full vikt för arbetstidslagen inför slutfasen. Poängen räknas om eftersom vikten ändras.
+function strictLaw(){const m=M;m.w.rest=m.w.weekRest=m.w.lawFull;computeAll();}
+function computeAll(){const m=M;m.total=0;for(let p=0;p<m.P;p++){m.pen[p]=pScore(p);m.total+=m.pen[p];}
+  for(let s=0;s<m.nS;s++)if(m.slotP[s]<0)m.total+=m.cov[s];}
+
+function greedyFill(){
+  const m=M,N=m.N;
+  for(let d=0;d<N;d++){
+    const list=m.byDay[d].slice().sort((a,b)=>(m.slots[b].req-m.slots[a].req));
+    for(const s of list){if(m.slotP[s]>=0||m.slots[s].extra)continue;
+      let best=-1,bv=-1,bd=0;const el=m.elig[s],kind=m.slots[s].kind;
+      for(let k=0;k<el.length;k++){const q=el[k];if(m.gridS[q*N+d]>=0)continue;
+        for(const v of m.av[q][kind]){assign(s,q,v);const sc=pScore(q);unassign(s);
+          const dl=sc-m.pen[q]-m.cov[s]+RNG()*0.5;
+          if(dl<bd){bd=dl;best=q;bv=v;}}}
+      if(best>=0){assign(s,best,bv);m.pen[best]=pScore(best);}
+    }}
+  computeAll();
+}
+
+function trySwap(T){
+  const m=M,N=m.N;if(!m.nS)return;
+  const s=(RNG()*m.nS)|0,sl=m.slots[s];if(sl.extra)return;
+  const d=sl.d,p=m.slotP[s];
+  if(p>=0&&m.fixed[p*N+d])return;
+  if(p>=0&&RNG()<.3){ // byt passets längd bland de tider personen får jobba
+    const kv=m.av[p][sl.kind];if(kv.length<2)return;
+    const ov=m.slotV[s],nv=kv[(RNG()*kv.length)|0];if(nv===ov)return;
+    const o=m.pen[p];m.slotV[s]=nv;m.row[p][d]=nv;const np=pScore(p),delta=np-o;
+    if(delta<=0||RNG()<Math.exp(-delta/T)){m.pen[p]=np;m.total+=delta;}else{m.slotV[s]=ov;m.row[p][d]=ov;}
+    return;}
+  if(RNG()<.3){crossMove(T,s);return;}
+  let q;
+  if(p>=0&&RNG()<0.06)q=-1;
+  else{const el=m.elig[s];if(!el.length)return;q=el[(RNG()*el.length)|0];if(q===p)return;}
+  const t=q>=0?m.gridS[q*N+d]:-1;
+  if(t>=0&&(m.slots[t].extra||m.fixed[q*N+d]))return;
+  const vS=m.slotV[s],vT=t>=0?m.slotV[t]:-1;
+  const vQ=q>=0?fitV(q,sl.kind,vS):-1;if(q>=0&&vQ<0)return;
+  const oP=p>=0?m.pen[p]:0,oQ=q>=0?m.pen[q]:0;
+  let dCov=0;
+  if(q<0){unassign(s);dCov+=m.cov[s];}
+  else if(t<0){if(p>=0)unassign(s);else dCov-=m.cov[s];assign(s,q,vQ);}
+  else if(p>=0&&m.eligM[t*m.P+p]){const vP=fitV(p,m.slots[t].kind,vT);if(vP<0)return;unassign(s);unassign(t);assign(s,q,vQ);assign(t,p,vP);}
+  else{if(p>=0)unassign(s);else dCov-=m.cov[s];unassign(t);dCov+=m.cov[t];assign(s,q,vQ);}
+  const nP=p>=0?pScore(p):0,nQ=q>=0?pScore(q):0;
+  const delta=nP+nQ-oP-oQ+dCov;
+  if(delta<=0||RNG()<Math.exp(-delta/T)){if(p>=0)m.pen[p]=nP;if(q>=0)m.pen[q]=nQ;m.total+=delta;return;}
+  unassign(s);if(t>=0)unassign(t);
+  if(p>=0)assign(s,p,vS);if(t>=0)assign(t,q,vT);
+}
+
+/* Byte över dagar: q tar plats s och lämnar ett eget pass en annan dag, till den som hade s
+   eller tomt. Timmarna står nästan still, så helgpass kan bytas mot vardagspass. */
+function crossMove(T,s){
+  const m=M,N=m.N,sl=m.slots[s],d=sl.d,p=m.slotP[s];
+  const el=m.elig[s];if(!el.length)return;const q=el[(RNG()*el.length)|0];
+  if(q===p||m.gridS[q*N+d]>=0)return;
+  const off=(RNG()*N)|0;let t2=-1;
+  for(let k=0;k<N;k++){const d2=(off+k)%N;if(d2===d)continue;const t=m.gridS[q*N+d2];
+    if(t<0||m.fixed[q*N+d2]||m.slots[t].extra)continue;
+    if(p>=0&&(m.gridS[p*N+d2]>=0||!m.eligM[t*m.P+p]))continue;
+    t2=t;break;}
+  if(t2<0)return;
+  const vS=m.slotV[s],vT=m.slotV[t2],vQ=fitV(q,sl.kind,vS),vP=p>=0?fitV(p,m.slots[t2].kind,vT):-1;
+  if(vQ<0||(p>=0&&vP<0))return;
+  const oP=p>=0?m.pen[p]:0,oQ=m.pen[q];let dCov=0;
+  if(p>=0)unassign(s);else dCov-=m.cov[s];
+  unassign(t2);assign(s,q,vQ);
+  if(p>=0)assign(t2,p,vP);else dCov+=m.cov[t2];
+  const nP=p>=0?pScore(p):0,nQ=pScore(q),delta=nP+nQ-oP-oQ+dCov;
+  if(delta<=0||RNG()<Math.exp(-delta/T)){if(p>=0)m.pen[p]=nP;m.pen[q]=nQ;m.total+=delta;return;}
+  unassign(s);unassign(t2);if(p>=0)assign(s,p,vS);assign(t2,q,vT);
+}
+
+/* ---------- Finslipning efter sökningen ----------
+   1. Varje person provar alla tillåtna tider för sina pass och behåller varje förbättring.
+   2. Saknas fortfarande en kvart eller två provas två tider samtidigt, eftersom tiderna ofta skiljer sig 30–60 minuter.
+   3. Räcker inte det byter personen pass med en kollega samma dag (till exempel ett kortare dagpass mot ett längre
+      tidigt pass). Båda finslipar sina övriga pass och bytet behålls bara om summan för de två blir bättre. */
+function finish(){
+  const m=M;
+  for(let p=0;p<m.P;p++){bestLengths(p);if(hoursDev(p))pairLengths(p);}
+  computeAll();
+  for(let p=0;p<m.P;p++)if(hoursDev(p))swapWithColleague(p);
+  repairRest();
+}
+/* Sista kontroll: ett vilobrott som sökningen inte hann reparera tas bort. Passet som kostar minst att ta bort
+   lämnas till en kollega eller tomt, så att inget brott mot vilan finns kvar. Låsta pass rörs inte. */
+function hasRestBreach(p){const out=[];pScore(p,out);return out.some(i=>i.sev==='hard'&&i.text.startsWith('För kort'));}
+function repairRest(){
+  const m=M;let changed=false;
+  for(let p=0;p<m.P;p++){
+    for(let guard=0;guard<m.N&&hasRestBreach(p);guard++){let best=Infinity,bs=-1;
+      for(const s of ownShifts(p)){const v=m.slotV[s];unassign(s);const dl=pScore(p)-m.pen[p]+m.cov[s];assign(s,p,v);if(dl<best){best=dl;bs=s;}}
+      if(bs<0||best>=0)break;
+      unassign(bs);m.pen[p]=pScore(p);changed=true;}}
+  if(changed){computeAll();greedyFill();for(let p=0;p<m.P;p++)if(hoursDev(p))bestLengths(p);computeAll();}
+}
+function hoursDev(p){const m=M;let t=0;for(let d=0;d<m.N;d++){const v=m.row[p][d];if(v>=0)t+=m.sh.net[v];}return t-m.targetMin[p];}
+// pass som personen själv får finslipa: inte låsta och inte extra platser för låsningar
+function ownShifts(p){const m=M,r=[];for(let d=0;d<m.N;d++){const s=m.gridS[p*m.N+d];if(s>=0&&!m.fixed[p*m.N+d]&&!m.slots[s].extra)r.push(s);}return r;}
+function setV(p,s,v){const m=M;m.slotV[s]=v;m.row[p][m.slots[s].d]=v;}
+function bestLengths(p){const m=M;
+  for(let guard=0;guard<30;guard++){let best=-1e-9,bs=-1,bv=-1;
+    for(const s of ownShifts(p)){const cur=m.slotV[s];
+      for(const v of m.av[p][m.slots[s].kind]){if(v===cur)continue;setV(p,s,v);const dl=pScore(p)-m.pen[p];if(dl<best){best=dl;bs=s;bv=v;}setV(p,s,cur);}}
+    if(bs<0)break;setV(p,bs,bv);m.pen[p]=pScore(p);}}
+function pairLengths(p){
+  const m=M,c=[];
+  const fill=()=>{c.length=0;for(const s of ownShifts(p))for(const v of m.av[p][m.slots[s].kind])if(v!==m.slotV[s])c.push([s,v]);};
+  fill();if(c.length>400)return;   // många tider per pass: parsökningen blir för dyr och behövs sällan
+  for(let guard=0;guard<4&&hoursDev(p);guard++){let best=-1e-9,bi=-1,bj=-1;
+    for(let i=0;i<c.length;i++){const [s1,v1]=c[i],o1=m.slotV[s1];setV(p,s1,v1);
+      for(let j=i+1;j<c.length;j++){const [s2,v2]=c[j];if(s2===s1)continue;const o2=m.slotV[s2];setV(p,s2,v2);
+        const dl=pScore(p)-m.pen[p];if(dl<best){best=dl;bi=i;bj=j;}setV(p,s2,o2);}
+      setV(p,s1,o1);}
+    if(bi<0)break;setV(p,...c[bi]);setV(p,...c[bj]);m.pen[p]=pScore(p);
+    fill();}}
+function swapWithColleague(p){
+  const m=M,N=m.N,dev0=Math.abs(hoursDev(p));
+  const save=q=>ownShifts(q).map(s=>[s,m.slotV[s]]),restore=(q,r)=>r.forEach(([s,v])=>setV(q,s,v));
+  for(const s of ownShifts(p)){const d=m.slots[s].d;
+    for(const t of m.byDay[d]){if(t===s)continue;const q=m.slotP[t];if(q<0||q===p||m.fixed[q*N+d]||m.slots[t].extra)continue;
+      if(!m.eligM[t*m.P+p]||!m.eligM[s*m.P+q])continue;
+      const vS=m.slotV[s],vT=m.slotV[t],vp=fitV(p,m.slots[t].kind,vT),vq=fitV(q,m.slots[s].kind,vS);if(vp<0||vq<0)continue;
+      const o=m.pen[p]+m.pen[q],op=m.pen[p],oq=m.pen[q],rp=save(p),rq=save(q);
+      unassign(s);unassign(t);assign(t,p,vp);assign(s,q,vq);m.pen[p]=pScore(p);m.pen[q]=pScore(q);
+      if(Math.abs(hoursDev(p))<dev0){bestLengths(p);bestLengths(q);
+        if(m.pen[p]+m.pen[q]<o-1e-9){computeAll();return;}}   // bytet behålls
+      unassign(s);unassign(t);assign(s,p,vS);assign(t,q,vT);restore(p,rp);restore(q,rq);m.pen[p]=op;m.pen[q]=oq;}}
+}
+
+/* Sammanställning för visning */
+function analyze(){
+  const m=M,N=m.N,P=m.P,r=m.rules,st=m.S.settings;
+  const persons=[],flags=new Uint8Array(Math.max(1,P*N));let hard=0,soft=0,dailyV=0,weeklyV=0;
+  const saved=m.base;m.base=null;
+  for(let p=0;p<P;p++){const out=[];pScore(p,out);const s=out.stats;
+    let h=0;out.forEach(i=>{if(i.sev==='hard'){h++;if(i.text.startsWith('För kort dygnsvila'))dailyV++;if(i.text.includes('veckovila'))weeklyV++;
+      if(i.d>=0&&i.w===undefined)flags[p*N+i.d]=2;}});
+    hard+=h;soft+=out.length-h;
+    persons.push(Object.assign({target:m.targetMin[p],issues:out,hard:h,soft:out.length-h,
+      hoursOk:Math.abs(s.mins-m.targetMin[p])<15,blockPct:s.free?s.freeInBlocks/s.free:1,weekRatio:m.targetMin[p]?s.maxWeek/(m.targetMin[p]/m.WK):1},s));}
+  m.base=saved;
+  const nG=m.G.length,missG=m.G.map(()=>new Int16Array(N)),holeMap=new Map();
+  let holesWd=0,holesWe=0,reqWd=0,reqWe=0;
+  const cov={wd:[0,0],we:[0,0]};
+  for(let s=0;s<m.nS;s++){const sl=m.slots[s],p=m.slotP[s],f=p>=0?1:0;
+    if(!sl.req)continue;
+    const c=cov[sl.we?'we':'wd'];c[1]++;c[0]+=f;
+    if(sl.we)reqWe++;else reqWd++;
+    if(!f){missG[sl.g][sl.d]++;if(sl.we)holesWe++;else holesWd++;
+      const k=sl.d+'|'+sl.g+'|'+sl.kind;holeMap.set(k,(holeMap.get(k)||0)+1);}}
+  const gName=g=>`${m.U[m.G[g].unit].name} ${m.G[g].name}`;
+  // Listan "att titta på" visar bara det chefen behöver göra något åt: lagbrott, tomma vardagspass
+  // och den som inte får sina timmar. Övriga avvikelser per person syns på personens egen sida.
+  const todo=[];
+  persons.forEach((x,p)=>{
+    x.issues.filter(i=>i.sev==='hard').forEach(i=>todo.push({sev:'hard',p,d:i.w!==undefined?-1:i.d,text:i.text}));
+    if(!x.hoursOk){const i=x.issues.find(i=>i.text.startsWith('Har ')&&i.text.includes(' h, ska ha '));if(i)todo.push({sev:'soft',p,d:-1,text:i.text});}});
+  const holeItems=m.U.map(()=>[]);
+  holeMap.forEach((n,k)=>{const [d,g,kind]=k.split('|').map(Number);if(m.days[d].we&&!r.fillWeekend)return;
+    holeItems[m.G[g].unit].push({sev:'hard',p:-1,d,n,text:`${gName(g)}, ${m.T[kind].name.toLowerCase()}: ${n} pass saknar personal`});});
+  m.U.forEach((u,ui)=>{const it=holeItems[ui];if(!it.length)return;
+    if(it.length<=4)it.forEach(x=>todo.push(x));
+    else todo.push({sev:'hard',p:-1,d:it[0].d,text:`${u.name}: ${it.reduce((a,x)=>a+x.n,0)} vardagspass saknar personal. Personalens timmar räcker inte till bemanningen. Lägg till personal eller minska bemanningen under Inställningar.`});});
+  // Går timmarna ihop? Jämför personalens timmar med vad passen kräver och rymmer, per avdelning och vecka.
+  const capacity={};
+  m.U.forEach((u,ui)=>{let need=0,room=0,roomWe=0,weCap=0;
+    m.slots.forEach(sl=>{if(sl.extra||!sl.req||sl.unit!==ui)return;const nets=m.sh.byKind[sl.kind].map(v=>m.sh.net[v]);if(!nets.length)return;
+      need+=Math.min(...nets);if(sl.we)roomWe+=Math.max(...nets);else room+=Math.max(...nets);});
+    // helgpassen rymmer bara så mycket som personalen kan ta under sina arbetshelger
+    persons.forEach((x,p)=>{if(m.unit[p]!==ui)return;const nets=m.av[p].flat().map(v=>m.sh.net[v]);if(nets.length)weCap+=2*m.WK/r.wkEvery*Math.max(...nets);});
+    const weShort=roomWe>weCap;room+=Math.min(roomWe,weCap);
+    const staffMin=persons.reduce((a,x,p)=>a+(m.unit[p]===ui?x.target:0),0),wkH=v=>Math.round(v/60/m.WK);
+    capacity[u.id]={staff:wkH(staffMin),need:wkH(need),room:wkH(room)};
+    if(!staffMin)return;
+    if(staffMin>room*1.02)todo.push({sev:'hard',p:-1,d:-1,text:`${u.name}: personalen har cirka ${wkH(staffMin)} timmar per vecka men passen rymmer högst ${wkH(room)}. Alla kan inte få sina timmar. Sänk tjänstgöringsgrader eller öka bemanningen under Inställningar.${weShort&&r.wkEvery>2?` Med ${EVERY[r.wkEvery]} helg tar var och en färre helgpass, så mer av tiden behöver ligga på vardagar.`:''}`});
+    else if(staffMin<need*.85)todo.push({sev:'hard',p:-1,d:-1,text:`${u.name}: personalen har cirka ${wkH(staffMin)} timmar per vecka men passen kräver minst ${wkH(need)}. Lägg till personal eller höj tjänstgöringsgrader.`});});
+  // personer som saknar tillåtna pass helt (till exempel tider som inte matchar någon passtyp)
+  persons.forEach((x,p)=>{if(!m.av[p].some(L=>L.length))todo.push({sev:'hard',p,d:-1,text:'Har inga pass som passar personens begränsningar. Ändra passtyper eller tider på personens sida.'});});
+  if(holesWe&&!r.fillWeekend)todo.push({sev:'vik',p:-1,d:-1,text:`${holesWe} helgpass går till vikarie. Med ${EVERY[r.wkEvery]} helg räcker inte personalen till alla helgpass.`});
+  const ord={hard:0,vik:1,soft:2};todo.sort((a,b)=>ord[a.sev]-ord[b.sev]||((a.d<0?999:a.d)-(b.d<0?999:b.d)));
+  const cnt=f=>persons.filter(f).length;
+  const sumFree=persons.reduce((a,x)=>a+x.free,0),sumBlock=persons.reduce((a,x)=>a+x.freeInBlocks,0);
+  const blockPct=sumFree?sumBlock/sumFree:1;
+  const hoursOk=cnt(x=>x.hoursOk),sixW=persons.reduce((a,x)=>a+x.sixWeeks,0);
+  const wkN=persons.reduce((a,x)=>a+x.wkRestN,0),wkSum=persons.reduce((a,x)=>a+x.wkRestSum,0),wkMinAll=P?Math.min(...persons.map(x=>x.wkRestMin)):0;
+  const maxRun=P?Math.max(...persons.map(x=>x.maxRun)):0;
+  const maxRatio=P?Math.max(...persons.map(x=>x.weekRatio)):1;
+  const minGapAll=P?Math.min(...persons.map(x=>x.minGap)):1e9,minWeekAll=P?Math.min(...persons.map(x=>x.minWeek)):1e9;
+  const nightOk=m.sh.V.every(v=>v.st>=300&&v.en<=1440);
+  const below=(v,law)=>v<law?` Lagen säger ${law} timmar. Ni har valt ${fmtH(v)}, vilket kräver stöd i kollektivavtal.`:'';
+  const evShares=persons.filter((x,p)=>x.n&&!m.pref[p]&&m.shareE[p]>0).map(x=>x.ev/x.n);
+  const totN=persons.reduce((a,x)=>a+x.n,0),totAway=persons.reduce((a,x)=>a+x.away,0);
+  const pill=(ok,tot)=>ok>=tot?'ok':'warn';
+  const per=`per ${m.WK} veckor`;
+  const law=[
+    {n:'§ 13',paper:`Dygnsvila minst ${fmtH(r.dailyRest)} timmar i följd`,how:'Arbetstidslagen 13 §. Kontrolleras mellan alla pass, även när grundschemat börjar om.'+below(r.dailyRest,LAW_DAILY),
+     val:dailyV?`${dailyV} brister`:minGapAll<1e9?`Följs. Kortaste vila mellan två pass är ${h1(minGapAll)} h`:'Följs',st:dailyV?'bad':'ok'},
+    r.night?{n:'§ 13',paper:'Nattarbete',how:'Arbetstidslagen 13 §: vilan ska om möjligt omfatta 00–05. Nattpass är tillåtna i inställningarna, eftersom arbetet kräver det. Kontrollera att det stämmer med ert kollektivavtal.',
+     val:nightOk?'Inga pass mellan 00 och 05':'Nattpass används',st:'ok'}
+    :{n:'§ 13',paper:'Vilan ska omfatta tiden 00–05',how:'Arbetstidslagen 13 §. Inget pass ligger mellan midnatt och 05.',
+     val:nightOk?'Följs':'Något pass ligger mellan 00 och 05',st:nightOk?'ok':'bad'},
+    {n:'§ 14',paper:`Veckovila minst ${fmtH(r.weeklyRest)} timmar i följd varje vecka`,how:'Arbetstidslagen 14 §. Räknas inom varje kalendervecka, måndag till söndag.'+below(r.weeklyRest,LAW_WEEKLY),
+     val:weeklyV?`${weeklyV} brister`:minWeekAll<1e9?`Följs. Kortaste veckovila är ${Math.floor(minWeekAll/60)} h`:'Följs',st:weeklyV?'bad':'ok'}];
+  const rules=[];
+  const addRule=(paper,how,val,st)=>rules.push({n:rules.length+1,paper,how,val,st});
+  addRule('Bemanning per grupp',`Antal per passtyp, vardag och helg, enligt Inställningar. ${r.fillWeekend?'Även helger fylls med ordinarie personal.':'Tomma helgpass går till vikarie.'}`,
+    `Vardagar ${cov.wd[0]} av ${cov.wd[1]} pass, helger ${cov.we[0]} av ${cov.we[1]}`,cov.wd[0]<cov.wd[1]?'bad':cov.we[0]<cov.we[1]?'warn':'ok');
+  addRule('Personalen jobbar i sin egen grupp',{aldrig:'Ingen lånas till en annan grupp. Bara du flyttar personal mellan grupper.',behov:'Motorn lånar personal till en annan grupp i avdelningen bara när bemanningen kräver det. Mellan avdelningar flyttar bara du.',
+    fritt:'Motorn får lägga personal i alla grupper i avdelningen. Mellan avdelningar flyttar bara du.'}[r.lend],
+    totN?`${Math.round((1-totAway/totN)*100)} % av passen i hemgruppen`:'–','ok');
+  addRule(`Varje person arbetar ${EVERY[r.wkEvery]} helg`,(r.wkEvery===2?'Udda och jämna veckor turas om.':`Personalen är indelad i ${r.wkEvery} helglag som turas om.`)+' Arbetshelg betyder både lördag och söndag.',
+    `${cnt(x=>!x.wkMissing)} av ${P} personer`,pill(cnt(x=>!x.wkMissing),P));
+  addRule('Passtyperna fördelas rättvist','Varje person tar sin andel av avdelningens passtyper och kvällspass, justerat för önskemål om dag eller kväll.',
+    evShares.length?`Kvällsandel ${Math.round(Math.min(...evShares)*100)}–${Math.round(Math.max(...evShares)*100)} % för den som inte har önskemål`:'–','ok');
+  const rec=[
+    {n:'A',paper:'Alla får exakt sina timmar',how:`Heltid ${String(st.fullTime).replace('.',',')} h per vecka. Motorn väljer bland passtyperna tider så att timmarna går jämnt ut.`,
+     val:`${hoursOk} av ${P} personer`,st:pill(hoursOk,P)},
+    {n:'B',paper:'Ledighet i block om minst två dagar',how:'En ensam ledig dag mellan arbetsdagar ger sällan riktig återhämtning.',
+     val:`${Math.round(blockPct*100)} % av ledigheten`,st:blockPct>=.85?'ok':'warn'},
+    {n:'C',paper:`Högst ${r.maxRow} arbetsdagar i rad och högst ${r.maxWeekDays} av 7 dagar`,how:'Ett mål. Heltidare får de längre passen så att timmarna räcker på färre dagar. Med korta pass behöver en heltidare ändå ibland fler dagar på en vecka. Sju dagar i rad undviks starkt.',
+     val:`Längsta arbetsperiod ${maxRun} dagar · ${sixW} ${sixW===1?'vecka':'veckor'} med fler än ${r.maxWeekDays} arbetsdagar`,st:maxRun<=r.maxRow&&!sixW?'ok':'warn'},
+    {n:'D',paper:'Jämna veckor',how:`Ingen vecka mer än ${r.maxWeekPct} % över snittet.`,
+     val:`Tyngsta vecka ${Math.round(maxRatio*100)} % av snittet`,st:maxRatio<=1+r.maxWeekPct/100+.01?'ok':'warn'},
+    {n:'E',paper:'Lång vila runt ledigheten',how:'Sista passet före en ledighet slutar så tidigt som möjligt och första passet efter börjar så sent som möjligt. Lediga helger prioriteras. Dygnsvilan gör att ett arbetsblock inte kan gå från kväll till dag, så alla ledigheter kan inte få både och.',
+     val:wkN?`Lediga helger ger i snitt ${Math.round(wkSum/wkN/60)} h vila, kortast ${Math.floor(wkMinAll/60)} h`:'Inga lediga helger',st:'ok'}];
+  return {persons,flags,missG,capacity,todo,hard,soft,holesWd,holesWe,reqWd,reqWe,dailyV,weeklyV,rules,rec,law,hoursOk,blockPct,maxRun,minGapAll,totAway,totN};
+}
+</script>
+
+<script>
+/* ================= Gränssnitt ================= */
+const LS_KEY='schemaplaneraren-v7',OLD_KEYS=[];
+const DOWS=['Mån','Tis','Ons','Tor','Fre','Lör','Sön'];
+const LETTERS=['M','T','O','T','F','L','S'];
+const PCTS=[100,95,90,85,80,75,70,65,60,55,50,45,40,35,30,25,20];
+const CHEV='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6l4 4 4-4"/></svg>';
+const ICON_OK='<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 8.5 3 3 6-7"/></svg>';
+const ICON_BAD='<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3.5v5.5M8 12.2v.3"/></svg>';
+const ICON_WAIT='<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2.5a5.5 5.5 0 1 0 5.5 5.5"/></svg>';
+const ICON_X='<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+const ICON_HOME='<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 7 8 2.5 13.5 7v6.5h-11z"/></svg>';
+
+// welcome är 'start' första gången appen öppnas, 'guide' medan verksamheten läggs upp och tomt annars
+let welcome='',guide=null,resetArm=false;
+let S=load(),A=null,busy=false,runId=0,tab='schema',mode='vecka',week=0,moved=new Set(),hist=[],todoOpen=false,statusItems=[],rulesOpen=false,popCtx=null,sheet=null,toastT=0,delArm=null;
+const $=s=>document.querySelector(s);
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function initials(n){return String(n).split(/\s+/).filter(Boolean).map(x=>x[0]).join('').slice(0,2).toUpperCase()||'?'}
+function range(v){const x=M.sh.V[v];return `${fmtShort(x.st)}–${fmtShort(x.en)}`}
+// passtypens färg som CSS-variabler, så att celler, prickar och remsor färgas likadant
+function tStyle(ti){const c=M.T[ti].color;return `--c:${c};--on:${onColor(c)}`}
+function typeName(v){return M.T[M.sh.kind[v]].name}
+function clone(o){return o==null?o:JSON.parse(JSON.stringify(o))}
+function pct(x){return Math.round(x*100)+' %'}
+function dLong(dy){return `${DOWL[dy.dow]}, vecka ${dy.w+1}`}
+function dShort(dy){return `${DOW[dy.dow]} v${dy.w+1}`}
+function gFull(g){const G=M.G[g];return `${M.U[G.unit].name} ${G.name}`}
+// gruppen för en persons pass en viss dag, men bara när den inte är personens hemgrupp
+function awayLabel(p,d){const s=M.gridS[p*M.N+d];if(s<0)return '';const g=M.slots[s].g;if(g===M.home[p])return '';return M.G[g].unit===M.unit[p]?M.G[g].name:gFull(g);}
+function staffIdx(g){return M.staff.map((x,p)=>p).filter(p=>M.home[p]===g)}
+function newId(){return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function allGroups(){const out=[];S.settings.units.forEach(u=>u.groups.forEach(g=>out.push({id:g.id,name:g.name,unit:u})));return out;}
+function groupLabel(id){const g=allGroups().find(x=>x.id===id);return g?`${g.unit.name} ${g.name}`:'';}
+
+/* ---------- lagring: bara i den här webbläsaren ----------
+   Inget skickas till någon server. Säkerhetskopian är en JSON-fil som chefen sparar och öppnar själv. */
+function load(){
+  let o=null;
+  for(const k of [LS_KEY,...OLD_KEYS]){try{const t=localStorage.getItem(k);if(t){o=JSON.parse(t);break;}}catch(e){o=null;}}
+  if(!o){welcome='start';return defaults();}
+  return normalize(o);
+}
+function persist(){S.savedAt=new Date().toISOString();store();renderSave();}
+function store(){try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){toast('Webbläsaren kunde inte spara. Spara en säkerhetskopia till fil under Inställningar.');}}
+function renderSave(){const el=$('#save');el.className='save '+(S.savedAt?'ok':'');el.querySelector('span').textContent=S.savedAt?'Sparat i den här webbläsaren':'Sparas i den här webbläsaren';}
+// Verksamhetens namn och färg i toppfältet, fliken och knapparna.
+function tint(hex,a){const n=parseInt(hex.slice(1),16),mix=c=>Math.round(c*a+255*(1-a));return `rgb(${mix(n>>16&255)},${mix(n>>8&255)},${mix(n&255)})`;}
+function applyProfile(){const st=S.settings,rs=document.documentElement.style;
+  rs.setProperty('--accent',st.accent);rs.setProperty('--accent-tint',tint(st.accent,.12));
+  $('#orgName').textContent=st.orgName||'Schemaplaneraren';$('#orgSub').textContent=st.orgName?'Schemaplaneraren':'Grundschema för vård och omsorg';
+  document.title=st.orgName?`${st.orgName} · Schemaplaneraren`:'Schemaplaneraren';}
+/* Byter hela tillståndet: efter en säkerhetskopia, demodata eller välkomstguiden. */
+function loadState(ns,msg){
+  runId++;setBusy(false);S=ns;hist=[];moved=new Set();closePop();closeSheet();welcome='';guide=null;tab='schema';week=0;
+  if(!S.example)persist();else{S.savedAt=null;store();}
+  if(S.schedule&&Object.keys(S.schedule).length)refresh();
+  else{M=buildModel(S);computeAll();A=analyze();renderAll();if(S.staff.length)solveFresh(false);}
+  if(msg)toast(msg);
+}
+function resetAll(){
+  runId++;setBusy(false);try{[LS_KEY,...OLD_KEYS].forEach(k=>localStorage.removeItem(k));}catch(e){}
+  S=defaults();hist=[];moved=new Set();closePop();closeSheet();welcome='start';guide=null;tab='welcome';resetArm=false;
+  M=buildModel(S);computeAll();A=analyze();renderAll();window.scrollTo({top:0});
+}
+function backupName(){const o=(S.settings.orgName||'Schemaplaneraren').replace(/[\\/:*?"<>|]+/g,'').trim()||'Schemaplaneraren';return `${o} säkerhetskopia ${new Date().toISOString().slice(0,10)}.json`;}
+function saveBackup(){saveFile(backupName(),new Blob([JSON.stringify({app:'schemaplaneraren',savedAt:new Date().toISOString(),state:S})],{type:'application/json'}),'Säkerhetskopian laddas ner. Spara den på ett säkert ställe.');}
+function openBackup(){const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=async()=>{const f=inp.files&&inp.files[0];if(!f)return;
+    try{const o=JSON.parse(await f.text()),st=o&&o.state?o.state:o;if(!st||typeof st!=='object'||!st.settings||!Array.isArray(st.staff))throw new Error('format');
+      loadState(normalize(st),'Säkerhetskopian är öppnad');}
+    catch(e){toast('Filen kunde inte läsas. Välj en säkerhetskopia från Schemaplaneraren.');}};
+  inp.click();}
+
+/* ---------- körning ---------- */
+function refresh(){M=buildModel(S);warmStart(S.schedule);computeAll();S.schedule=extract();A=analyze();renderAll();}
+function snapshot(){hist.push(JSON.stringify({locks:S.locks,wishes:S.wishes,schedule:S.schedule,staff:S.staff,settings:S.settings,stale:S.stale,example:S.example}));if(hist.length>30)hist.shift();}
+function undo(){if(busy||!hist.length)return;Object.assign(S,JSON.parse(hist.pop()));S=normalize(S);moved=new Set();closePop();persist();refresh();toast('Ångrat');}
+const yieldNow=()=>document.hidden?new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=()=>r();c.port2.postMessage(0);}):new Promise(r=>setTimeout(r,0));
+/* Kör optimeringen i små steg så att sidan inte fryser. Avbryts om den tar för lång tid. */
+async function anneal(iters,T0,T1,budgetMs,id){
+  const t0=performance.now();let i=0;
+  while(i<iters){const el=performance.now()-t0;if(el>budgetMs)break;
+    const frac=Math.max(i/iters,el/budgetMs),T=Math.max(.01,T0*Math.pow(T1/T0,Math.min(1,frac)));
+    const end=Math.min(iters,i+15000);for(;i<end;i++)trySwap(T);
+    setProgress(frac);
+    await yieldNow();if(id!==runId)return false;}
+  return true;
+}
+// Medan motorn söker visar statusrutan vad som händer och hur långt den kommit, och schemat tonas ner.
+let busyKind='';
+function setBusy(b,kind){busy=b;busyKind=b?(kind||'fresh'):'';const nb=$('#btnNew');if(nb)nb.disabled=b;$('#progress').hidden=!b;if(b)$('#pbar').style.width='0%';
+  $('#tab-schema').classList.toggle('busy',b);if(b){renderStatus();setProgress(0);}}
+function setProgress(f){const pc=(Math.min(1,f)*100).toFixed(0)+'%';$('#pbar').style.width=pc;
+  const sb=$('#sbar'),sp=$('#spct');if(sb)sb.style.width=pc;if(sp)sp.textContent=pc.replace('%',' %');}
+
+async function solveFresh(record){
+  if(busy)return;if(record)snapshot();const id=++runId;setBusy(true,'fresh');
+  try{
+    RNG=mulberry32((Math.random()*1e9)|0);
+    M=buildModel(S);computeAll();greedyFill();
+    // Ett nytt grundschema läggs sällan, så sökningen får gå längre. Testerna visar att fem gånger längre sökning ger
+    // tydligt bättre schema (färre vikariepass, längre vila runt lediga helger, fler i hemgruppen).
+    if(!await anneal(S.settings.iterations*5,60,.3,30000,id))return;
+    strictLaw();greedyFill();for(let i=0;i<40000;i++)trySwap(.05);finish();
+    S.schedule=extract();S.stale=false;A=analyze();moved=new Set();
+    if(record||!S.example)persist();else store();
+  }catch(e){console.error(e);toast('Något gick fel när schemat lades. Försök igen.');}
+  finally{if(id===runId){setBusy(false);if(!A&&M){A=analyze();}renderAll();}}
+  if(id===runId&&record)toast('Schemat är omlagt',true);
+}
+/* Anpassar schemat efter en ändring: låsta rutor står kvar, resten justeras så att alla
+   fortfarande får sina timmar och så få andra pass som möjligt flyttas. */
+async function adjust(prev,skipKey,msg){
+  if(busy)return;const id=++runId;setBusy(true,'adjust');
+  try{
+    RNG=mulberry32((Math.random()*1e9)|0);
+    M=buildModel(S);warmStart(S.schedule);M.base=baseFrom(prev);computeAll();greedyFill();
+    if(!await anneal(250000,4,.1,2500,id))return;
+    strictLaw();greedyFill();for(let i=0;i<20000;i++)trySwap(.03);finish();M.base=null;computeAll();
+    S.schedule=extract();A=analyze();
+    moved=new Set();M.staff.forEach((x,p)=>{for(let d=0;d<M.N;d++){const a=(prev&&prev[x.id]||{})[d]||'',b=(S.schedule[x.id]||{})[d]||'';if(a!==b)moved.add(p*M.N+d);}});
+    if(skipKey)skipKey.forEach(k=>moved.delete(k));
+    persist();
+  }catch(e){console.error(e);toast('Något gick fel. Ändringen är sparad, men schemat kunde inte anpassas.');}
+  finally{if(id===runId){setBusy(false);renderAll();}}
+  if(id!==runId)return;
+  const n=moved.size;
+  toast(msg+(n?` · ${n} ${n===1?'annan ruta':'andra rutor'} justerades`:''),true);
+}
+function change(fn,msg){if(busy)return;snapshot();const prev=clone(S.schedule);const skip=fn()||null;S.example=false;return adjust(prev,skip,msg);}
+/* Ändringar i personal och inställningar sparas direkt men lägger inte om schemat förrän chefen vill. */
+function edit(fn,opts){if(busy)return false;snapshot();const r=fn();if(r===false){hist.pop();return false;}S.example=false;S=normalize(S);if(!opts||opts.stale!==false)S.stale=true;persist();refresh();return true;}
+function updateSchedule(){if(busy)return;snapshot();const prev=clone(S.schedule);S.stale=false;adjust(prev,null,'Schemat är uppdaterat');}
+
+/* ---------- rendering ---------- */
+function renderAll(){applyProfile();renderTabs();renderBanner();
+  if(tab==='welcome'){renderWelcome();renderSave();return;}
+  if(tab==='schema'){renderStatus();renderSchema();}
+  if(tab==='regler')renderRegler();
+  $('#btnUndo').disabled=!hist.length||busy;
+  if(sheet&&sheet.kind==='person'){const p=M.staff.findIndex(x=>x.id===sheet.id);if(p>=0)openPerson(p,true);else closeSheet();}
+  else if(sheet&&sheet.kind==='day'){if(sheet.d<M.N&&sheet.g<M.G.length)openDay(sheet.d,sheet.g,true);else closeSheet();}
+  renderSave();}
+function renderTabs(){['schema','regler','welcome'].forEach(t=>$('#tab-'+t).hidden=t!==tab);
+  $('.top .tools').hidden=tab==='welcome';
+  $('#btnSettings').setAttribute('aria-pressed',tab==='regler');}
+function renderBanner(){
+  const b=$('#banner');let h='';
+  if(tab==='welcome'){b.hidden=true;return;}
+  if(S.stale&&!busy)h=`<span><b>Personal eller inställningar har ändrats.</b> Uppdatera schemat så att ändringarna kommer med.</span><button class="btn primary" id="bnUpdate">Uppdatera schemat</button>`;
+  else if(S.example&&!busy)h=`<span><b>Det här är demodata.</b> Prova fritt. När du vill börja på riktigt lägger du upp er verksamhet, och demodatan försvinner.</span><button class="btn primary" id="bnGuide">Lägg upp er verksamhet</button>`;
+  b.innerHTML=h;b.hidden=!h;}
+
+function renderStatus(){
+  const el=$('#status');
+  if(busy){const fresh=busyKind!=='adjust';el.className='status wait busy';
+    el.innerHTML=`<div class="shead"><span class="sicon spin">${ICON_WAIT}</span><span class="stext"><b>${fresh?'Lägger ett nytt schema':'Anpassar schemat'}</b>`+
+      `<span>${fresh?'Motorn prövar miljontals kombinationer för att hitta det bästa schemat. Det tar upp till en halv minut.':'Det tar några sekunder.'}</span></span><span class="spct" id="spct">0 %</span></div>`+
+      `<div class="strack"><div class="sbar" id="sbar"></div></div>`;return;}
+  if(!M.P){el.className='status wait';
+    el.innerHTML=`<div class="shead"><span class="sicon">${ICON_WAIT}</span><span class="stext"><b>Ingen personal ännu</b><span>Lägg till personal nedan, sedan läggs schemat.</span></span></div>`;return;}
+  // Helgpassen till vikarie står redan i underrubriken, så listan tar bara upp sådant som kräver handling.
+  const a=A,items=statusItems=a.todo.filter(i=>i.sev!=='vik'),hardN=items.filter(i=>i.sev==='hard').length;
+  const bad=hardN>0,lawN=a.dailyV+a.weeklyV;
+  const title=bad?`${hardN} ${hardN===1?'sak behöver':'saker behöver'} åtgärdas`:'Schemat är klart';
+  const sub=[lawN?`${lawN} brister mot arbetstidslagen`:'Följer arbetstidslagen',
+    a.holesWd?`${a.holesWd} vardagspass saknar personal`:'Alla vardagspass är bemannade',
+    a.holesWe?`${a.holesWe} helgpass går till vikarie`:''].filter(Boolean).join(' · ');
+  const more=items.length?`<span class="smore">${items.length} att titta på ${CHEV}</span>`:'';
+  el.className='status '+(bad?'bad':'ok')+(todoOpen&&items.length?' open':'');
+  el.innerHTML=`<button class="shead" id="sToggle" ${items.length?'':'disabled'} aria-expanded="${todoOpen}"><span class="sicon">${bad?ICON_BAD:ICON_OK}</span><span class="stext"><b>${title}</b><span>${sub}</span></span>${more}</button>`+
+    (todoOpen&&items.length?`<ul class="todo">${items.map((i,k)=>`<li><button data-k="${k}"><i class="sev ${i.sev}"></i><span class="tname">${i.p>=0?esc(M.staff[i.p].name):'Bemanning'}</span><span class="what">${esc(i.text)}</span><span class="when">${i.d>=0?dShort(M.days[i.d]):''}</span></button></li>`).join('')}</ul>`:'');
+}
+
+function typeSpan(ti){const vs=M.sh.byKind[ti];if(!vs.length)return '';const a=Math.min(...vs.map(v=>M.sh.st[v])),b=Math.max(...vs.map(v=>M.sh.en[v]));return `${fmtShort(a)}–${fmtShort(b)}`;}
+function legend(){
+  const used=new Set();for(let p=0;p<M.P;p++)for(let d=0;d<M.N;d++){const v=M.row[p][d];if(v>=0)used.add(M.sh.kind[v]);}
+  return `<div class="legend">${M.T.map((t,ti)=>used.has(ti)?`<span><i class="kc" style="${tStyle(ti)}"></i>${esc(t.name)} <span class="muted">${typeSpan(ti)}</span></span>`:'').join('')}<span><i style="box-shadow:inset 0 0 0 1.5px var(--warn)"></i>Önskar ledigt</span><span><i style="background:currentColor;opacity:.4;width:6px;height:6px;border-radius:50%"></i>Ändrat av dig</span><span><span class="awaytag">CD</span>I en annan grupp</span>${moved.size?'<span><i style="box-shadow:0 0 0 2px var(--accent)"></i>Justerat av systemet</span>':''}</div>`;
+}
+function renderSchema(){
+  $('#modeSeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===mode));
+  week=Math.max(0,Math.min(week,M.WK-1));
+  $('#stepper').hidden=mode!=='vecka';
+  $('#wLabel').textContent=`Vecka ${week+1} av ${M.WK}`;
+  $('#wPrev').disabled=week<=0;$('#wNext').disabled=week>=M.WK-1;
+  const v=$('#schemaView');
+  const empty=busy&&!S.schedule&&M.P>0;
+  $('#tab-schema .bar').hidden=empty;
+  if(empty){v.innerHTML='';return;}
+  v.innerHTML=mode==='vecka'||!M.P?weekTable():periodView();
+}
+function addButtons(gid){return `<span class="addrow"><button class="btn ghost" data-add="${gid}">+ Lägg till person</button><button class="btn ghost" data-paste="${gid}">Klistra in från Excel</button></span>`;}
+function weekTable(){
+  const m=M,a=A,days=m.days.filter(d=>d.w===week),cols=days.length+2;
+  let h=`<div class="tw"><table class="wt"><thead><tr><th class="nmc">Personal</th>${days.map(dy=>`<th class="${dy.we?'we':''}"><button class="dayh" data-day="${dy.d}" data-g="-1" title="Se hur ${DOWL[dy.dow].toLowerCase()} är bemannad i alla grupper">${DOWS[dy.dow]}</button></th>`).join('')}<th class="hc">Timmar</th></tr></thead><tbody>`;
+  m.G.forEach((G,g)=>{
+    const ps=staffIdx(g);
+    h+=`<tr class="gh"><th colspan="${cols}">${esc(m.U[G.unit].name)} · ${esc(G.name)} <span>· ${ps.length} ${ps.length===1?'person':'personer'}</span></th></tr>`;
+    if(!ps.length)h+=`<tr><td colspan="${cols}" class="empty">Ingen personal i ${esc(G.name)} ännu.</td></tr>`;
+    ps.forEach(p=>{const x=m.staff[p],s=a.persons[p];
+      h+=`<tr><th class="nmc"><button class="who" data-p="${p}"><span class="av">${esc(initials(x.name))}</span><span class="nmw"><b>${esc(x.name)}</b><small>${x.pct} %</small></span></button></th>`;
+      days.forEach(dy=>{const i=p*m.N+dy.d,v=m.row[p][dy.d];let cls='cell '+(v>=0?'kc':'off');
+        if(m.wish[i])cls+=' wish';if(m.lock[i]!==-2)cls+=' lockd';if(a.flags[i]===2)cls+=' flag';if(moved.has(i))cls+=' moved';
+        const where=v>=0?awayLabel(p,dy.d):'';
+        const t=`${esc(x.name)}, ${dLong(dy)}: ${v>=0?esc(typeName(v))+' '+range(v)+(where?' i '+esc(where):''):'ledig'}${m.wish[i]?', önskar ledigt':''}`;
+        h+=`<td class="${dy.we?'we':''}"><button class="${cls}"${v>=0?` style="${tStyle(m.sh.kind[v])}"`:''} data-p="${p}" data-d="${dy.d}" title="${t}" aria-label="${t}">${v>=0?range(v)+(where?`<small class="away">i ${esc(where)}</small>`:''):''}</button></td>`;});
+      h+=`<td class="hc">${fmtDur(s.weeks[week]||0)} h</td></tr>`;});
+    if(ps.length||m.slots.some(sl=>sl.req&&sl.g===g))h+=`<tr class="cov"><th class="nmc">Bemanning ${esc(G.name)}</th>${days.map(dy=>{const miss=a.missG[g][dy.d],vik=dy.we&&!m.rules.fillWeekend;
+      return `<td class="${dy.we?'we':''}"><button class="covb" data-day="${dy.d}" data-g="${g}" title="Se hur ${DOWL[dy.dow].toLowerCase()} är bemannad i ${esc(G.name)}">${miss?`<span class="tag ${vik?'warn':'bad'}">${vik?miss+' vikarie':miss+' saknas'}</span>`:'<span class="okc">✓</span>'}</button></td>`;}).join('')}<td></td></tr>`;
+    h+=`<tr class="addrow"><td colspan="${cols}">${addButtons(G.id)}</td></tr>`;
+  });
+  return h+'</tbody></table></div>'+legend();
+}
+function periodView(){
+  const m=M,a=A,weeks=[...Array(m.WK).keys()];
+  let h=`<div class="people"><div class="phead"><span class="hint">Klicka på en dag för att ändra</span><div class="strip" style="grid-template-columns:repeat(${m.WK},minmax(0,1fr))">${weeks.map(w=>`<div class="wkl"><span>Vecka ${w+1}</span><div class="letters">${LETTERS.map(l=>`<span>${l}</span>`).join('')}</div></div>`).join('')}</div><span class="hint" style="text-align:right">Timmar</span></div>`;
+  m.G.forEach((G,g)=>{
+    const ps=staffIdx(g);
+    h+=`<div class="ptitle">${esc(m.U[G.unit].name)} · ${esc(G.name)} · ${ps.length}</div>`;
+    ps.forEach(p=>{const x=m.staff[p],s=a.persons[p];
+      h+=`<div class="prow"><button class="who" data-p="${p}"><span class="av">${esc(initials(x.name))}</span><span class="nmw"><b>${esc(x.name)}</b><small>${x.pct} %</small></span></button><div class="strip" style="grid-template-columns:repeat(${m.WK},minmax(0,1fr))">`;
+      weeks.forEach(w=>{h+='<div class="wk">';
+        for(let d=w*7;d<w*7+7;d++){const i=p*m.N+d,v=m.row[p][d],dy=m.days[d];
+          let cls='c '+(v>=0?'kc':'free'+(dy.we?' we':''));if(m.wish[i])cls+=' wish';if(a.flags[i]===2)cls+=' flag';if(moved.has(i))cls+=' moved';
+          const where=v>=0?awayLabel(p,d):'';if(where)cls+=' awayc';
+          const t=`${dLong(dy)}: ${v>=0?esc(typeName(v))+' '+range(v)+(where?' i '+esc(where):''):'ledig'}`;
+          h+=`<button class="${cls}"${v>=0?` style="${tStyle(m.sh.kind[v])}"`:''} data-p="${p}" data-d="${d}" title="${t}" aria-label="${esc(x.name)}, ${t}"></button>`;}
+        h+='</div>';});
+      const dev=s.mins-s.target;
+      h+=`</div><span class="pstat"><span class="${s.hoursOk?'':'bad'}">${s.hoursOk?fmtDur(s.mins)+' h':(dev>0?'+':'')+fmtDur(dev)+' h'}</span></span></div>`;});
+    h+=`<div class="addrow">${addButtons(G.id)}</div>`;
+  });
+  return h+`<div style="padding:0 12px 12px">${legend()}</div></div>`;
+}
+
+/* ---------- popover för en dag ---------- */
+function placePop(el){const pop=$('#pop');pop.hidden=false;
+  const r=el.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;
+  const left=Math.min(window.innerWidth-pw-8,Math.max(8,r.left));
+  let top=r.bottom+6;if(top+ph>window.innerHeight-8)top=Math.max(8,r.top-ph-6);
+  pop.style.left=left+'px';pop.style.top=top+'px';}
+function closePop(){$('#pop').hidden=true;popCtx=null;}
+function openDayPop(p,d,el){
+  const m=M,x=m.staff[p],dy=m.days[d],cur=m.row[p][d],i=p*m.N+d,st=S.settings,wk=dy.we?'weekend':'weekday';
+  popCtx={p,d};
+  const curS=m.gridS[i],curG=curS>=0?m.slots[curS].g:-1;
+  // passtyper som behövs i avdelningen den här dagen, och de som passet redan har
+  const unitGroups=m.U[m.unit[p]].groups;
+  const needed=m.T.map((t,ti)=>unitGroups.some(g=>(st.demand[m.G[g].id]&&st.demand[m.G[g].id][wk]||{})[t.id]>0)||(cur>=0&&m.sh.kind[cur]===ti));
+  let h=`<div class="ph"><b>${esc(x.name)}</b><span>${dLong(dy)}${dy.we&&!m.wkWork[p*m.WK+dy.w]?' · ledig helg':''}</span></div><div class="sep"></div>`;
+  m.T.forEach((t,ti)=>{if(!needed[ti])return;const vs=m.sh.byKind[ti];if(!vs.length)return;
+    h+=`<div class="vrow"><span class="vl"><i class="dot kc" style="${tStyle(ti)}"></i>${esc(t.name)}</span><div class="vbs">${vs.map(v=>{const okv=m.allowV[p*m.nV+v];
+      return `<button class="vbtn${cur===v?' on':''}${okv?'':' dim'}" data-act="set" data-v="${v}" title="${range(v)}${okv?'':' · utanför personens begränsningar'}">${range(v)}</button>`;}).join('')}</div></div>`;});
+  if(cur>=0){
+    const own=unitGroups,other=m.G.map((G,g)=>g).filter(g=>m.G[g].unit!==m.unit[p]);
+    h+=`<div class="vrow"><span class="vl">${ICON_HOME}Grupp</span><div class="vbs">${own.map(g=>`<button class="vbtn${curG===g?' on':''}" data-act="bg" data-g="${g}">${esc(m.G[g].name)}${g===m.home[p]?' (hem)':''}</button>`).join('')}</div></div>`;
+    if(other.length)h+=`<div class="vrow"><span class="vl muted small">Låna ut till en annan avdelning</span><div class="vbs">${other.map(g=>`<button class="vbtn${curG===g?' on':''}" data-act="bg" data-g="${g}">${esc(gFull(g))}</button>`).join('')}</div></div>`;}
+  h+=`<button class="item${cur<0?' cur':''}" data-act="off"><i class="dot" style="background:var(--surface-3)"></i>Ledig${cur<0?'<span class="r">✓</span>':''}</button><div class="sep"></div>`;
+  h+=`<button class="item" data-act="wish"><span>Önskar ledigt<br><span class="muted small">samma dag varje period</span></span><span class="toggle${m.wish[i]?' on':''}"></span></button>`;
+  if(m.lock[i]!==-2)h+=`<div class="sep"></div><button class="item" data-act="unlock" style="color:var(--accent)">Låt systemet välja igen</button>`;
+  $('#pop').innerHTML=h;placePop(el);
+}
+function ensure(id){S.locks[id]=S.locks[id]||{};S.wishes[id]=S.wishes[id]||{};S.schedule=S.schedule||{};S.schedule[id]=S.schedule[id]||{};}
+function popAction(btn){
+  const act=btn.dataset.act,ctx=popCtx;if(!ctx)return;closePop();
+  const {p,d}=ctx,x=M.staff[p],key=String(d),keys=[p*M.N+d],s0=M.gridS[p*M.N+d];
+  const curG=s0>=0?M.slots[s0].g:M.home[p];
+  change(()=>{ensure(x.id);const L=S.locks[x.id],Wi=S.wishes[x.id],R=S.schedule[x.id];
+    if(act==='set'){const c=M.sh.V[+btn.dataset.v].code+'@'+M.G[curG].id;L[key]=c;R[key]=c;}
+    else if(act==='bg'){const cur=M.row[p][d];if(cur<0)return null;const c=M.sh.V[cur].code+'@'+M.G[+btn.dataset.g].id;L[key]=c;R[key]=c;}
+    else if(act==='off'){L[key]='-';delete R[key];}
+    else if(act==='wish'){if(Wi[key]==='L')delete Wi[key];else Wi[key]='L';return null;}
+    else if(act==='unlock'){delete L[key];return null;}
+    return keys;},
+    act==='wish'?'Önskemålet är sparat':act==='unlock'?'Systemet väljer igen':act==='bg'?`${x.name} är i ${gFull(+btn.dataset.g)} den dagen`:'Ändringen är sparad');
+}
+
+/* ---------- personpanel ---------- */
+function showSheet(html){$('#sheet').innerHTML=html;$('#sheet').hidden=false;$('#scrim').hidden=false;}
+function closeSheet(){sheet=null;$('#sheet').hidden=true;$('#scrim').hidden=true;}
+function groupOptions(cur){return S.settings.units.map(u=>`<optgroup label="${esc(u.name)}">${u.groups.map(g=>`<option value="${g.id}"${g.id===cur?' selected':''}>${esc(u.name)} ${esc(g.name)}</option>`).join('')}</optgroup>`).join('');}
+function openPerson(p,keep){
+  const m=M,x=m.staff[p],s=A.persons[p];sheet={kind:'person',id:x.id};
+  // samma avvikelse flera gånger visas som en rad med alla datum
+  const grouped=new Map();
+  s.issues.forEach(i=>{const g=grouped.get(i.text)||{sev:i.sev,text:i.text,d:i.d,w:i.w,days:[]};if(i.d>=0&&i.w===undefined)g.days.push(dShort(m.days[i.d]));grouped.set(i.text,g);});
+  const issues=[...grouped.values()].sort((a,b)=>(a.sev==='hard'?0:1)-(b.sev==='hard'?0:1)||a.d-b.d).map(g=>({sev:g.sev,text:g.text,when:g.days.join(', ')}));
+  if(!m.av[p].some(L=>L.length))issues.unshift({sev:'hard',text:'Inga pass passar personens begränsningar. Ändra passtyper eller tider nedan.',when:''});
+  let cal='<div class="cal"><span></span>'+LETTERS.map(l=>`<span class="hd">${l}</span>`).join('');
+  for(let w=0;w<m.WK;w++){cal+=`<span class="wn">V${w+1}</span>`;
+    for(let d=w*7;d<w*7+7;d++){const i=p*m.N+d,v=m.row[p][d],dy=m.days[d];
+      let cls='cc'+(v>=0?' kc':dy.we?' we':'');if(m.wish[i])cls+=' wish';if(A.flags[i]===2)cls+=' flag';
+      const sv=v>=0?m.sh.V[v]:null,aw=v>=0?awayLabel(p,d):'';
+      cal+=`<button class="${cls}"${v>=0?` style="${tStyle(m.sh.kind[v])}"`:''} data-p="${p}" data-d="${d}" aria-label="${dLong(dy)}${aw?', i '+esc(aw):''}"><span class="t">${sv?fmtShort(sv.st):''}</span><span class="t">${sv?fmtShort(sv.en):''}</span>${aw?`<span class="t aw">${esc(aw)}</span>`:''}</button>`;}}
+  cal+='</div>';
+  const rec=[
+    ['Pass i hemgruppen',s.n?`${s.n-s.away} av ${s.n}`:'–'],
+    ['Ledighet i block om minst två dagar',pct(s.blockPct)],
+    ['Längsta arbetsperiod',`${s.maxRun} dagar`],
+    [`Veckor med fler än ${m.maxWD} arbetsdagar`,`${s.sixWeeks}`],
+    ['Kortaste vila mellan två pass',s.minGap<1e9?`${h1(s.minGap)} h`:'–'],
+    ['Kortaste veckovila',s.minWeek<1e9?`${Math.floor(s.minWeek/60)} h`:'–'],
+    ['Kortaste lediga helg, vila i timmar',s.wkRestMin<1e9?`${Math.floor(s.wkRestMin/60)} h`:'–'],
+    ['Vila runt ledigheten utöver de lediga dygnen, snitt',s.edges?`${h1(s.edgeRest/(s.edges/2))} h`:'–']];
+  const dev=s.mins-s.target,scroll=keep?$('#sheet').scrollTop:0;
+  const E=m.rules.wkEvery,same=S.staff.filter(y=>y.group===x.group),teams=[...Array(E).keys()].map(k=>same.filter(y=>wgIndex(y,E)===k).length),wk=wgIndex(x,E);
+  const opt=(v,lab,cur)=>`<option value="${v}"${String(cur)===String(v)?' selected':''}>${lab}</option>`;
+  const hg=m.home[p],unitG=m.U[m.unit[p]].groups.filter(g=>g!==hg);
+  const tChecked=t=>!x.types||x.types.includes(t.id),gChecked=g=>x.groups===null||x.groups.includes(m.G[g].id);
+  // Överst: personens schema och hur hen har det. Under, i en egen yta: det man kan ändra.
+  showSheet(`<div class="shtop"><span class="small muted">${esc(gFull(hg))}</span><span class="shbtns"><button class="btn ghost" id="shEdit">Ändra</button><button class="btn ghost" id="shClose">Stäng</button></span></div>
+    <div class="ident"><span class="av" id="shAv">${esc(initials(x.name))}</span><div><h2 id="shName">${esc(x.name)}</h2><span class="small muted">${x.pct} % · ${E===2?`arbetshelg ${wk?'jämna':'udda'} veckor`:`helglag ${WG[wk]}`}${x.pref?` · ${x.pref==='dag'?'hellre dag':'hellre kväll'}`:''}</span></div></div>
+    <div class="stats">
+      <div class="stat"><b class="${s.hoursOk?'':'bad'}">${fmtDur(s.mins)} h</b><span>${s.hoursOk?'exakt rätt timmar':`av ${fmtDur(s.target)} h (${dev>0?'+':''}${fmtDur(dev)})`}</span></div>
+      <div class="stat"><b>${s.n}</b><span>pass</span></div>
+      <div class="stat"><b>${s.ev}</b><span>kvällar</span></div>
+      <div class="stat"><b>${s.free}</b><span>lediga dagar</span></div>
+    </div>
+    <div class="sec"><h3>Hela perioden</h3>${cal}<p class="small muted">${s.weeks.map((h,w)=>`V${w+1} ${fmtDur(h)} h`).join(' · ')}</p></div>
+    <div class="sec"><h3>Att titta på</h3>${issues.length?`<ul class="list">${issues.map(i=>`<li><i class="sev ${i.sev}"></i><span>${esc(i.text)}</span><span class="when">${esc(i.when)}</span></li>`).join('')}</ul>`:'<p class="small muted">Inget att anmärka.</p>'}</div>
+    <div class="sec"><h3>Återhämtning</h3><ul class="list">${rec.map(r=>`<li><span>${r[0]}</span><span class="val">${r[1]}</span></li>`).join('')}</ul></div>
+    <section class="zone" id="shZone" aria-label="Ändra uppgifter och begränsningar">
+      <div class="zhead"><h3>Ändra uppgifter och begränsningar</h3><p class="fhint">Ändringar sparas direkt, och schemat läggs om när du klickar Uppdatera schemat.</p></div>
+      <div class="sec"><h4>Uppgifter</h4><div class="form">
+        <div class="frow"><label for="pf-name">Namn</label><input class="finput" id="pf-name" data-id="${x.id}" data-k="name" value="${esc(x.name)}" autocomplete="off"></div>
+        <div class="frow"><label for="pf-pct">Tjänstgöringsgrad</label><select id="pf-pct" data-id="${x.id}" data-k="pct">${PCTS.concat([x.pct]).filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>b-a).map(v=>opt(v,v+' %',x.pct)).join('')}</select></div>
+        <div class="frow"><label for="pf-group">Hemgrupp</label><select id="pf-group" data-id="${x.id}" data-k="group">${groupOptions(x.group)}</select></div>
+        <div class="frow"><label for="pf-wg">Arbetshelg</label><select id="pf-wg" data-id="${x.id}" data-k="wg">${teams.map((n,k)=>opt(WG[k],wgLabel(k,E,m.WK),WG[wk])).join('')}</select></div>
+        <div class="frow"><label for="pf-pref">Önskemål</label><select id="pf-pref" data-id="${x.id}" data-k="pref">${opt('','Inga',x.pref||'')}${opt('dag','Hellre dag',x.pref||'')}${opt('kvall','Hellre kväll',x.pref||'')}</select></div>
+      </div><p class="fhint">I ${esc(m.G[hg].name)} ${E===2?`arbetar ${teams[0]} udda och ${teams[1]} jämna helger`:`är helglagen ${teams.map((n,k)=>`${WG[k]} ${n}`).join(', ')}`}.${Math.max(...teams)-Math.min(...teams)>1?' Jämnare fördelning ger färre vikariepass.':''}</p></div>
+      <div class="sec"><h4>Begränsningar</h4><div class="form">
+        <div class="frow wrap"><span>Passtyper</span><span class="chks">${m.T.map(t=>`<label class="chk"><input type="checkbox" data-id="${x.id}" data-k="type" data-t="${t.id}"${tChecked(t)?' checked':''}><i class="dot kc" style="--c:${t.color}"></i>${esc(t.name)}</label>`).join('')}</span></div>
+        <div class="frow"><label for="pf-earliest">Börjar tidigast</label><input class="time" id="pf-earliest" data-id="${x.id}" data-k="earliest" value="${x.earliest||''}" placeholder="–"></div>
+        <div class="frow"><label for="pf-latest">Slutar senast</label><input class="time" id="pf-latest" data-id="${x.id}" data-k="latest" value="${x.latest||''}" placeholder="–"></div>
+        <div class="frow"><label for="pf-maxLen">Längsta pass, timmar</label><input class="time" id="pf-maxLen" data-id="${x.id}" data-k="maxLen" value="${x.maxLen?String(x.maxLen/60).replace('.',','):''}" placeholder="–"></div>
+        ${unitG.length&&m.rules.lend!=='aldrig'?`<div class="frow wrap"><span>Kan också jobba i</span><span class="chks">${unitG.map(g=>`<label class="chk"><input type="checkbox" data-id="${x.id}" data-k="grp" data-g="${m.G[g].id}"${gChecked(g)?' checked':''}>${esc(m.G[g].name)}</label>`).join('')}</span></div>`:''}
+      </div><p class="fhint">Tomt betyder ingen begränsning. ${m.rules.lend==='aldrig'?'Under Inställningar är utlåning mellan grupper avstängd, så personen jobbar bara i hemgruppen.':`Motorn lägger passen i hemgruppen och lånar ut personen till en annan grupp i ${esc(m.U[m.unit[p]].name)} ${m.rules.lend==='fritt'?'när det ger ett bättre schema':'bara när bemanningen kräver det'}.`}</p></div>
+      <div><button class="btn del${delArm===x.id?' armed':''}" data-del="${x.id}">${delArm===x.id?'Klicka igen för att ta bort '+esc(x.name):'Ta bort '+esc(x.name)}</button></div>
+    </section>`);
+  $('#sheet').scrollTop=scroll;
+}
+
+/* ---------- en dag: hur den är bemannad ----------
+   Visar för en grupp, eller för alla avdelningar och grupper, vem som jobbar vilket pass, vem som är
+   lånad in eller ut, vilka pass som är tomma och vilka i gruppen som är lediga och kan hoppa in. */
+function openDay(d,g,keep){
+  const m=M,dy=m.days[d],scroll=keep?$('#sheet').scrollTop:0,all=g<0,prevG=sheet&&sheet.kind==='day'?sheet.lastG:undefined;sheet={kind:'day',d,g};
+  const vik=dy.we&&!m.rules.fillWeekend;
+  const groupHtml=gi=>{const G=m.G[gi];let need=0,have=0;
+    const rows=m.T.map((t,ti)=>{const ss=m.byDay[d].filter(s=>m.slots[s].g===gi&&m.slots[s].kind===ti&&(m.slots[s].req||m.slotP[s]>=0));if(!ss.length)return '';
+      ss.sort((a,b)=>(m.slotP[a]<0)-(m.slotP[b]<0)||(m.slotV[a]>=0&&m.slotV[b]>=0?m.sh.st[m.slotV[a]]-m.sh.st[m.slotV[b]]:0));
+      const items=ss.map(s=>{const q=m.slotP[s];if(m.slots[s].req){need++;if(q>=0)have++;}
+        if(q<0)return `<li class="dempty"><span class="tag ${vik?'warn':'bad'}">${vik?'Vikarie':'Saknas'}</span><span class="muted small">Tomt pass</span></li>`;
+        const from=m.home[q]!==gi?`<span class="awaytag">från ${esc(m.G[m.home[q]].unit===G.unit?m.G[m.home[q]].name:gFull(m.home[q]))}</span>`:'';
+        return `<li><button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${from}<span class="dtime">${range(m.slotV[s])}</span></li>`;}).join('');
+      return `<div class="dtype"><div class="dth"><i class="dot kc" style="${tStyle(ti)}"></i>${esc(t.name)}<span class="muted small">${ss.filter(s=>m.slotP[s]>=0).length} av ${ss.filter(s=>m.slots[s].req).length||ss.length}</span></div><ul class="dlist">${items}</ul></div>`;}).join('');
+    const home=staffIdx(gi),out=home.filter(q=>{const s=m.gridS[q*m.N+d];return s>=0&&m.slots[s].g!==gi;});
+    const free=home.filter(q=>m.row[q][d]<0);
+    const freeTxt=free.map(q=>{const notes=[];if(dy.we&&!m.wkWork[q*m.WK+dy.w])notes.push('ledig helg');if(m.wish[q*m.N+d])notes.push('önskar ledigt');
+      return `<button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${notes.length?`<span class="muted small"> (${notes.join(', ')})</span>`:''}`;}).join(', ');
+    return `<div class="dgroup"><div class="dgh"><h3>${esc(m.U[G.unit].name)} ${esc(G.name)}</h3><span class="${have<need?(vik?'warnt':'badt'):'okt'}">${have} av ${need} pass bemannade</span></div>
+      ${rows||'<p class="small muted">Ingen bemanning den här dagen.</p>'}
+      ${out.length?`<p class="small"><b>Utlånade:</b> ${out.map(q=>`<button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button> till ${esc(gFull(m.slots[m.gridS[q*m.N+d]].g))}`).join(', ')}</p>`:''}
+      <p class="small"><b>Lediga i ${esc(G.name)}:</b> ${freeTxt||'<span class="muted">ingen</span>'}</p></div>`;};
+  const scopeG=g>=0?g:(prevG??0);
+  showSheet(`<div class="shtop"><div class="dnav"><button class="btn ghost icon" data-dstep="-1" aria-label="Föregående dag"${d<=0?' disabled':''}>‹</button><h2>${DOWL[dy.dow]} <span class="muted">vecka ${dy.w+1}</span></h2><button class="btn ghost icon" data-dstep="1" aria-label="Nästa dag"${d>=m.N-1?' disabled':''}>›</button></div><button class="btn ghost" id="shClose">Stäng</button></div>
+    <div class="seg sm" role="group" aria-label="Visa"><button data-dscope="${scopeG}" aria-pressed="${!all}">${esc(gFull(scopeG))}</button><button data-dscope="-1" aria-pressed="${all}">Alla avdelningar och grupper</button></div>
+    ${all?m.G.map((G,gi)=>groupHtml(gi)).join(''):groupHtml(g)}
+    <p class="small muted">Klicka på ett namn för att se personen. Pass ändras genom att klicka på dem i schemat.</p>`);
+  sheet.lastG=scopeG;
+  $('#sheet').scrollTop=scroll;
+}
+
+/* ---------- personal ---------- */
+/* Tolkar rader som klistrats in från Excel: namn, tjänstgöringsgrad och grupp i valfri ordning.
+   groups är en lista med {id,name,unit:{name}}. En kolumn med ett gruppnamn väljer gruppen för raden. */
+function parsePaste(text,groups){
+  groups=groups||allGroups();
+  const rows=[];
+  String(text||'').split(/\r?\n/).forEach((line,li)=>{
+    if(!line.trim())return;
+    let cols=line.split('\t');if(cols.length===1&&line.includes(';'))cols=line.split(';');
+    cols=cols.map(c=>c.trim()).filter(Boolean);if(!cols.length)return;
+    if(li===0&&cols.some(c=>/^(namn|name|förnamn|efternamn|personal)$/i.test(c)))return;
+    let p=null,gid=null;const nameParts=[];
+    cols.forEach(c=>{const low=c.toLowerCase();
+      if(low==='heltid'){if(p===null)p=100;return;}
+      if(/^[\d\s.,% ]+$/.test(c)){let v=num(c,NaN);if(isFinite(v)){if(v>0&&v<=1&&!c.includes('%'))v*=100;if(v>=5&&v<=100&&p===null){p=Math.round(v);return;}}return;}
+      // avdelnings- och gruppnamn i en egen kolumn hör inte till namnet
+      const gm=groups.find(g=>g.name.toLowerCase()===low);if(gm){gid=gm.id;return;}
+      if(groups.some(g=>g.unit.name.toLowerCase()===low))return;
+      nameParts.push(c);});
+    const name=nameParts.join(' ').replace(/\s+/g,' ').trim().slice(0,60);if(!name)return;
+    rows.push({name,pct:p===null?100:p,gid,note:p===null?'Tjänstgöringsgrad saknas, blir 100 %':''});});
+  return rows;
+}
+function openPaste(gid){
+  if(!allGroups().some(g=>g.id===gid))gid=allGroups()[0].id;
+  sheet={kind:'paste',gid};
+  showSheet(`<div class="shtop"><h2>Klistra in personal</h2><button class="btn ghost" id="shClose">Stäng</button></div>
+    <div class="form"><div class="frow"><label for="pasteGroup">Till grupp</label><select id="pasteGroup">${groupOptions(gid)}</select></div></div>
+    <div class="sec"><p>Markera namn och tjänstgöringsgrad i Excel, kopiera och klistra in här. En person per rad.</p>
+    <textarea class="paste" id="pasteArea" placeholder="Anna Larsson&#9;100&#10;Bertil Karlsson&#9;75" aria-label="Klistra in personal"></textarea></div>
+    <div class="sec" id="pastePrev"><p class="small muted">Förhandsvisningen visas här.</p></div>
+    <div class="sec" style="flex-direction:row;gap:8px;flex-wrap:wrap"><button class="btn primary" id="pasteReplace" disabled>Ersätt gruppen</button><button class="btn" id="pasteAdd" disabled>Lägg till</button></div>
+    <p class="small muted">Arbetshelger fördelas jämnt och kan ändras efteråt. Inget ändras förrän du klickar.</p>`);
+  setTimeout(()=>{const t=$('#pasteArea');t&&t.focus();},50);
+}
+function updatePastePreview(){
+  const rows=parsePaste($('#pasteArea').value);sheet.rows=rows;
+  const cur=S.staff.filter(x=>x.group===sheet.gid).length,gl=groupLabel(sheet.gid);
+  $('#pasteReplace').disabled=!rows.length;$('#pasteAdd').disabled=!rows.length;
+  $('#pasteReplace').textContent=rows.length?`Ersätt de ${cur} i ${gl} med dessa ${rows.length}`:'Ersätt gruppen';
+  $('#pasteAdd').textContent=rows.length?`Lägg till ${rows.length}`:'Lägg till';
+  $('#pastePrev').innerHTML=rows.length?`<h3>${rows.length} personer hittades</h3><table class="prev"><thead><tr><th>Namn</th><th>Tjänstgöring</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.name)}${r.note?`<br><span class="warnt">${esc(r.note)}</span>`:''}</td><td>${r.pct} %</td></tr>`).join('')}</tbody></table>`
+    :'<p class="small muted">Inga namn hittades ännu. Klistra in en person per rad.</p>';
+}
+// Ny person hamnar i det helglag i gruppen som har minst personal.
+function newPerson(gid,name,pct){
+  const E=S.settings.rules.wkEvery,n=[...Array(E).keys()].map(k=>S.staff.filter(x=>x.group===gid&&wgIndex(x,E)===k).length);
+  return {id:newId(),name,group:gid,pct,wg:WG[n.indexOf(Math.min(...n))],pref:'',types:null,earliest:null,latest:null,maxLen:null,groups:null};}
+function wgLabel(k,E,WK){if(E===2)return k?'Jämna veckor':'Udda veckor';const ws=[];for(let w=k;w<WK;w+=E)ws.push(w+1);return `Lag ${WG[k]} (vecka ${ws.join(', ')})`;}
+function applyPaste(replace){
+  const gid=sheet.gid,rows=sheet.rows||[];if(!rows.length)return;
+  edit(()=>{
+    if(replace){const gone=S.staff.filter(x=>x.group===gid).map(x=>x.id);gone.forEach(id=>{delete S.locks[id];delete S.wishes[id];if(S.schedule)delete S.schedule[id];});S.staff=S.staff.filter(x=>x.group!==gid);}
+    rows.forEach(r=>S.staff.push(newPerson(gid,r.name,r.pct)));
+  });
+  closeSheet();toast(`${rows.length} personer ${replace?'inlagda':'tillagda'} i ${groupLabel(gid)}`);
+}
+function addPerson(gid){const x=newPerson(gid,'Ny person',100);
+  if(!edit(()=>{S.staff.push(x);}))return;
+  const p=M.staff.findIndex(y=>y.id===x.id);if(p<0)return;openPerson(p);
+  const el=$('#pf-name');if(el){el.focus();el.select();}}
+
+/* ---------- inställningar ---------- */
+// Byter index på passtider i låsningar och schema när en tid tas bort, så att inget pass byter tid i smyg.
+function remapCodes(fn){[S.locks,S.schedule].forEach(map=>{if(!map)return;Object.values(map).forEach(row=>{Object.keys(row).forEach(k=>{const v=row[k];if(v==='-')return;
+  const c=parseCode(v);if(!c)return;const nv=fn(c);if(nv===null)delete row[k];else if(nv!==v)row[k]=nv;});});});}
+function renderRegler(){
+  const st=S.settings,col={ok:'ok',warn:'vik',bad:'hard'};
+  const ruleList=list=>list.map(x=>`<div class="rule"><span class="rn">${x.n}</span><span class="rt">${esc(x.paper)}</span><span class="rv"><i class="sev ${col[x.st]}"></i>${esc(x.val)}</span><span class="rh">${esc(x.how)}</span></div>`).join('');
+  const lawN=A.dailyV+A.weeklyV,nT=st.types.length;
+  const staffIn=gid=>S.staff.filter(x=>x.group===gid).length;
+  const unitsHtml=st.units.map((u,ui)=>`<div class="ued">
+      <div class="frow"><input class="finput nm" data-un="${ui}" value="${esc(u.name)}" aria-label="Avdelningens namn">${st.units.length>1?`<button class="btn ghost small" data-unrm="${ui}">Ta bort avdelningen</button>`:''}</div>
+      <div class="gchips">${u.groups.map((g,gi)=>`<span class="gchip"><input data-gn="${ui}.${gi}" value="${esc(g.name)}" aria-label="Gruppens namn"><span class="muted small">${staffIn(g.id)} pers.</span>${u.groups.length>1?`<button data-grm="${ui}.${gi}" title="Ta bort ${esc(g.name)}" aria-label="Ta bort ${esc(g.name)}">${ICON_X}</button>`:''}</span>`).join('')}
+        <button class="btn ghost small" data-gadd="${ui}">+ Grupp</button></div></div>`).join('');
+  const typesHtml=st.types.map((t,ti)=>`<div class="ted">
+      <div class="frow"><button class="swatch" data-tcol="${ti}" style="--c:${t.color}" title="Byt färg" aria-label="Byt färg för ${esc(t.name)}"></button><input class="finput nm" data-tn="${ti}" value="${esc(t.name)}" aria-label="Passtypens namn">
+        <label class="chk small"><input type="checkbox" data-tev="${ti}"${t.eve?' checked':''}>Kvällspass</label>
+        ${nT>1?`<button class="btn ghost small" data-trm="${ti}">Ta bort</button>`:''}</div>
+      <div class="vlist">${t.variants.map((x,i)=>`<span class="vtime"><input class="time" data-vt="${ti}.${i}.0" value="${x[0]}" aria-label="${esc(t.name)} ${i+1} börjar">–<input class="time" data-vt="${ti}.${i}.1" value="${x[1]}" aria-label="${esc(t.name)} ${i+1} slutar">${t.variants.length>1?`<button data-vrm="${ti}.${i}" title="Ta bort tiden" aria-label="Ta bort tiden">${ICON_X}</button>`:''}</span>`).join('')}
+        <button class="btn ghost small" data-vadd="${ti}">+ Tid</button></div></div>`).join('');
+  const gcols=`grid-template-columns:minmax(110px,1fr) repeat(${nT},52px)`;
+  const demandHtml=`<div class="stgrid" style="${gcols}"><span></span>${st.types.map(t=>`<span class="hd"><i class="dot kc" style="--c:${t.color}"></i>${esc(t.name)}</span>`).join('')}</div>`+
+    st.units.map(u=>u.groups.map(g=>['weekday','weekend'].map(wk=>`<div class="stgrid" style="${gcols}"><span>${esc(u.name)} ${esc(g.name)}, ${wk==='weekday'?'vardag':'helg'}</span>${st.types.map(t=>`<input type="text" inputmode="numeric" data-dm="${g.id}.${wk}.${t.id}" value="${st.demand[g.id][wk][t.id]}" aria-label="${esc(u.name)} ${esc(g.name)} ${wk==='weekday'?'vardag':'helg'} ${esc(t.name)}">`).join('')}</div>`).join('')).join('')).join('');
+  const R=st.rules,E=R.wkEvery;
+  const segBtns=(attr,opts,cur)=>`<div class="seg sm">${opts.map(([v,l])=>`<button ${attr}="${v}" aria-pressed="${String(cur)===String(v)}">${l}</button>`).join('')}</div>`;
+  const ruleIn=(k,label,unit)=>`<div class="frow"><label for="st-${k}">${label}</label><span class="unit"><input id="st-${k}" class="time" data-rule="${k}" value="${fmtH(R[k])}">${unit||''}</span></div>`;
+  const toggle=(id,on,label)=>`<div class="frow"><span>${label}</span><button class="tgl" id="${id}" role="switch" aria-checked="${on}" aria-label="${label}"><span class="toggle${on?' on':''}"></span></button></div>`;
+  $('#tab-regler').innerHTML=`<div class="sethead"><h2>Inställningar</h2><button class="btn" id="setBack">Tillbaka till schemat</button></div>
+    <div class="cols">
+    <div class="stack">
+      <div class="card"><h2>Verksamhet</h2><div class="form">
+        <div class="frow"><label for="st-org">Namn</label><input id="st-org" class="finput wide" value="${esc(st.orgName)}" placeholder="Till exempel Solgårdens äldreboende" autocomplete="off"></div>
+        <div class="frow"><span>Färg</span><span class="swatches">${ACCENTS.map(([c,n])=>`<button class="swatch${st.accent===c?' on':''}" data-accent="${c}" style="--c:${c}" title="${n}" aria-label="${n}" aria-pressed="${st.accent===c}"></button>`).join('')}</span></div></div>
+        <p class="note">Namnet visas i toppfältet och i Excel-filen.</p></div>
+      <div class="card"><h2>Grundschema</h2><div class="form">
+        <div class="frow"><span>Längd</span>${segBtns('data-weeks',weekOptions(E).map(w=>[w,w+' veckor']),st.weeks)}</div>
+        <div class="frow"><label for="st-fullTime">Heltid, timmar per vecka</label><input id="st-fullTime" type="text" inputmode="decimal" value="${String(st.fullTime).replace('.',',')}"></div>
+        <div class="frow"><label for="st-break">Rast, minuter</label><input id="st-break" type="text" inputmode="numeric" value="${st.breakMin}"></div></div>
+        <p class="note">Grundschemat upprepas. ${st.weeks} veckor med ${EVERY[E]} helg ger ${st.weeks/E} ${st.weeks/E===1?'arbetshelg':'arbetshelger'} per person. Längden går jämnt upp med helgrytmen. Rasten dras på pass längre än 5 timmar, enligt arbetstidslagen.</p></div>
+      <div class="card"><h2>Avdelningar och grupper</h2>${unitsHtml}<div><button class="btn ghost small" id="uadd">+ Lägg till avdelning</button></div>
+        <div class="form"><div class="frow wrap"><span>Låna personal mellan grupper</span>${segBtns('data-lend',Object.entries(LEND_LABEL),R.lend)}</div></div>
+        <p class="note">Personalen har en hemgrupp. ${{aldrig:'Ingen lånas till en annan grupp.',behov:'Motorn lånar ut personal till en annan grupp i samma avdelning bara när bemanningen kräver det.',fritt:'Motorn får lägga personal i alla grupper i avdelningen.'}[R.lend]} Mellan avdelningar flyttar bara du, i dagmenyn.</p></div>
+      <div class="card"><h2>Passtyper och tider</h2>${typesHtml}<div><button class="btn ghost small" id="tadd">+ Lägg till passtyp</button></div>
+        <p class="note">Varje passtyp har de tider som får användas, och motorn väljer bland dem så att alla får sina timmar. Markera kvällspass, så fördelas kvällarna rättvist och efter önskemål om dag eller kväll.${R.night?' Ett pass som slutar före sin starttid går över midnatt, till exempel 21:30–07:00.':''}</p></div>
+      <div class="card"><h2>Bemanning per grupp</h2><div class="form scrollx">${demandHtml}</div>
+        <p class="note">Antal personer per dag och passtyp i varje grupp.</p></div>
+      <div class="card"><h2>Vila och nattarbete</h2><div class="form">
+        ${ruleIn('dailyRest','Dygnsvila, timmar')}${ruleIn('weeklyRest','Veckovila, timmar')}
+        ${toggle('st-night',R.night,'Tillåt nattpass')}</div>
+        <p class="note">Arbetstidslagen säger minst ${LAW_DAILY} timmars dygnsvila och ${LAW_WEEKLY} timmars veckovila. Kortare vila kräver stöd i ert kollektivavtal.${R.dailyRest<LAW_DAILY||R.weeklyRest<LAW_WEEKLY?' <b>Ni har valt kortare vila än lagen.</b>':''} ${R.night?'Nattpass är tillåtna och får gå över midnatt.':'Utan nattpass ligger alla pass mellan 05 och 24, så att vilan omfattar natten.'}</p></div>
+      <div class="card"><h2>Helger och återhämtning</h2><div class="form">
+        <div class="frow wrap"><span>Varje person arbetar</span>${segBtns('data-every',[[2,'Varannan helg'],[3,'Var tredje'],[4,'Var fjärde']],E)}</div>
+        <div class="frow wrap"><span>Prioritera</span>${segBtns('data-balance',Object.entries(BALANCE_LABEL),R.balance)}</div>
+        ${ruleIn('maxRow','Högst arbetsdagar i rad')}${ruleIn('maxWeekDays','Högst arbetsdagar per vecka')}${ruleIn('maxWeekPct','Tyngsta vecka, högst över snittet','<span class="muted">%</span>')}
+        ${toggle('st-fill',R.fillWeekend,'Fyll även helger med ordinarie personal')}
+      </div><p class="note">Personalens timmar och antalet pass är fasta. Färre långa veckor för heltidare betyder längre pass, och då räcker timmarna till färre helgpass. Balanserat är en mittpunkt.</p></div>
+      <div class="card"><h2>Lägg om hela schemat</h2><p class="note">Lägger ett nytt schema från början. Dagar du har ändrat eller låst står kvar. Det går att ångra.</p><div><button class="btn" id="btnNew"${busy?' disabled':''}>Lägg om schemat</button></div></div>
+      <div class="card"><h2>Säkerhetskopia</h2><p class="note">Allt sparas bara i den här webbläsaren. Spara en säkerhetskopia till fil med jämna mellanrum, och för att flytta schemat till en annan dator eller webbläsare.</p>
+        <div class="btns"><button class="btn" id="bkSave">Spara till fil</button><button class="btn ghost" id="bkOpen">Öppna fil</button></div></div>
+      <div class="card"><h2>Börja om</h2><p class="note">Raderar allt i den här webbläsaren: personal, inställningar och schema. Spara en säkerhetskopia först om du vill kunna gå tillbaka.</p>
+        <div class="btns"><button class="btn ghost" id="rsDemo">Prova med demodata</button><button class="btn del${resetArm?' armed':''}" id="rsAll">${resetArm?'Klicka igen för att radera allt':'Radera allt och börja om'}</button></div></div>
+    </div></div>
+    <details class="rules"${rulesOpen?' open':''}><summary>Visa hur reglerna följs <span>${lawN?`${lawN} brister mot arbetstidslagen`:'Arbetstidslagen följs'} ${CHEV}</span></summary>
+    <div class="cols">
+      <div class="card"><h2>Arbetstidslagen</h2><div>${ruleList(A.law)}</div><p class="note">Lagen går alltid före bemanningen. Systemet lämnar hellre ett pass tomt än bryter mot vilan.</p></div>
+      <div class="card"><h2>Återhämtning</h2><div>${ruleList(A.rec)}</div></div>
+      <div class="card"><h2>Era regler</h2><div>${ruleList(A.rules)}</div></div>
+    </div></details>`;
+  $('#tab-regler details').addEventListener('toggle',e=>{rulesOpen=e.target.open;});
+}
+const RULE_LIMITS={dailyRest:[8,13,.5],weeklyRest:[24,60,1],maxRow:[3,7,1],maxWeekDays:[4,7,1],maxWeekPct:[5,100,1]};
+function nextId(prefix,list){let i=1;while(list.includes(prefix+i))i++;return prefix+i;}
+function allIds(){const st=S.settings;return [...st.units.map(u=>u.id),...st.units.flatMap(u=>u.groups.map(g=>g.id)),...st.types.map(t=>t.id)];}
+
+/* ---------- välkomstsida och guide ----------
+   Första gången visas en välkomstsida: prova med demodata eller lägg upp verksamheten. Guiden frågar efter namn,
+   avdelningar med grupper, passtyper och personal. Allt annat går att ändra under Inställningar efteråt. */
+function renderWelcome(){
+  const el=$('#tab-welcome');
+  if(welcome!=='guide'){
+    el.innerHTML=`<div class="welcome"><div class="card hero">
+      <h2>Välkommen till Schemaplaneraren</h2>
+      <p class="lead">Schemaplaneraren lägger ett grundschema för vård och omsorg. Schemat följer arbetstidslagen, ger alla exakt sina timmar och samlar ledigheten i sammanhängande block.</p>
+      <ul class="facts"><li>Allt sparas bara i den här webbläsaren. Inget skickas till någon server.</li>
+        <li>Spara en säkerhetskopia till fil under Inställningar, så kan du flytta schemat till en annan dator.</li>
+        <li>Avdelningar, grupper, passtyper, bemanning och regler ställer du in själv.</li></ul>
+      <div class="btns"><button class="btn primary" id="wGuide">Lägg upp er verksamhet</button><button class="btn" id="wDemo">Prova med demodata</button><button class="btn ghost" id="wOpen">Öppna säkerhetskopia</button></div>
+    </div></div>`;return;}
+  const g=guide;
+  el.innerHTML=`<div class="welcome"><div class="sethead"><h2>Lägg upp er verksamhet</h2><button class="btn ghost" id="gCancel">Avbryt</button></div>
+    <div class="wsteps stack">
+    <div class="card"><h2>Verksamhetens namn</h2><div class="form"><div class="frow"><label for="gName">Namn</label><input id="gName" class="finput wide" value="${esc(g.name)}" placeholder="Till exempel Solgårdens äldreboende" autocomplete="off"></div></div></div>
+    <div class="card"><h2>Avdelningar och grupper</h2>
+      <p class="note">En rad per avdelning. Skriv avdelningens grupper med kommatecken emellan. Personalen har en hemgrupp, och bemanningen anges per grupp.</p>
+      ${g.units.map((u,i)=>`<div class="gu"><input data-gu="${i}" data-f="name" value="${esc(u.name)}" placeholder="Avdelning" aria-label="Avdelning ${i+1}"><input data-gu="${i}" data-f="groups" value="${esc(u.groups)}" placeholder="Grupp A, Grupp B" aria-label="Grupper i avdelning ${i+1}">${g.units.length>1?`<button class="btn ghost small" data-gurm="${i}">Ta bort</button>`:'<span></span>'}</div>`).join('')}
+      <div><button class="btn ghost small" id="guAdd">+ Lägg till avdelning</button></div></div>
+    <div class="card"><h2>Passtyper</h2><p class="note">Välj en mall att börja med. Tider, färger och fler passtyper ändrar du under Inställningar.</p>
+      ${Object.entries(TEMPLATES).map(([k,t])=>`<label class="tpl"><input type="radio" name="gTpl" value="${k}"${g.template===k?' checked':''}><span><b>${esc(t.label)}</b><small>${t.types.map(x=>`${esc(x.name)} ${x.variants[0][0]}–${x.variants[0][1]}`).join(' · ')}</small></span></label>`).join('')}</div>
+    <div class="card"><h2>Personal</h2><p class="note">Kopiera från Excel och klistra in: namn, tjänstgöringsgrad och grupp, en person per rad. Utan grupp hamnar personen i den första gruppen. Du kan också lägga till personal senare.</p>
+      <textarea class="paste" id="gStaff" placeholder="Anna Larsson&#9;100&#9;Grupp A&#10;Bertil Karlsson&#9;75&#9;Grupp B" aria-label="Personal">${esc(g.staff)}</textarea>
+      <p class="small muted" id="gStaffInfo">${guideStaffInfo()}</p></div>
+    <div class="btns"><button class="btn primary" id="gCreate">Skapa schema</button></div>
+    </div></div>`;
+}
+// Avdelningar och grupper ur guiden, med id:n som motorn kan använda.
+function guideUnits(){let gn=0;
+  return guide.units.map((u,i)=>({id:'u'+(i+1),name:u.name.replace(/\s+/g,' ').trim().slice(0,30)||'Avdelning '+(i+1),
+    groups:u.groups.split(/[,;]/).map(x=>x.replace(/\s+/g,' ').trim().slice(0,12)).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).slice(0,8).map(x=>({id:'g'+(++gn),name:x}))}))
+    .map(u=>u.groups.length?u:Object.assign(u,{groups:[{id:'g'+(++gn),name:'Grupp 1'}]})).slice(0,8);}
+function guideStaffInfo(){const units=guideUnits(),groups=units.flatMap(u=>u.groups.map(g=>({id:g.id,name:g.name,unit:u})));
+  const rows=parsePaste(guide.staff,groups);if(!rows.length)return 'Ingen personal ännu.';
+  const per=groups.map(g=>`${g.name} ${rows.filter(r=>(r.gid||groups[0].id)===g.id).length}`).join(', ');
+  return `${rows.length} ${rows.length===1?'person':'personer'}: ${per}.`;}
+function openGuide(){
+  guide={name:S.example?'':S.settings.orgName,units:[{name:'Avdelning 1',groups:'Grupp A, Grupp B'}],template:'standard',staff:''};
+  welcome='guide';tab='welcome';closePop();closeSheet();renderAll();window.scrollTo({top:0});
+  setTimeout(()=>{const n=$('#gName');n&&n.focus();},50);}
+function createFromGuide(){
+  const units=guideUnits(),groups=units.flatMap(u=>u.groups.map(g=>({id:g.id,name:g.name,unit:u})));
+  const ns=blank(guide.name.replace(/\s+/g,' ').trim().slice(0,60),units,guide.template),old=S;
+  S=ns;parsePaste(guide.staff,groups).forEach(r=>S.staff.push(newPerson(r.gid||groups[0].id,r.name,r.pct)));S=old;
+  loadState(normalize(ns),ns.staff.length?'Verksamheten är upplagd. Schemat läggs nu.':'Verksamheten är upplagd. Lägg till personal i varje grupp.');
+}
+
+/* ---------- export till Excel ---------- */
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.async=true;
+  const t=setTimeout(()=>rej(new Error('timeout')),15000);s.onload=()=>{clearTimeout(t);res();};s.onerror=()=>{clearTimeout(t);rej(new Error('load'));};document.head.appendChild(s);});}
+function cellText(p,d){const v=M.row[p][d];if(v<0)return '';const g=awayLabel(p,d);return `${fmtHM(M.sh.V[v].st)}–${fmtHM(M.sh.V[v].en)}${g?' i '+g:''}`;}
+const hNum=min=>Math.round(min/60*100)/100;
+function buildWorkbook(X){
+  const m=M,wb=X.utils.book_new();
+  for(let w=0;w<m.WK;w++){
+    const aoa=[[`${orgTitle()} · grundschema vecka ${w+1} av ${m.WK}`],[],['Namn','Grupp','Tjänstgöring',...DOWL,'Timmar']];
+    m.G.forEach((G,g)=>{const ps=staffIdx(g);if(!ps.length)return;
+      ps.forEach(p=>{const x=m.staff[p],row=[x.name,gFull(g),x.pct/100];for(let d=w*7;d<w*7+7;d++)row.push(cellText(p,d));row.push(hNum(A.persons[p].weeks[w]||0));aoa.push(row);});
+      aoa.push([]);});
+    const ws=X.utils.aoa_to_sheet(aoa);
+    for(let r=3;r<aoa.length;r++){const c=ws[X.utils.encode_cell({r,c:2})];if(c&&typeof c.v==='number')c.z='0%';}
+    ws['!cols']=[{wch:24},{wch:16},{wch:12},...Array(7).fill({wch:15}),{wch:9}];
+    X.utils.book_append_sheet(wb,ws,`Vecka ${w+1}`);}
+  const sum=[['Summering för hela perioden'],[],['Namn','Grupp','Tjänstgöring','Timmar','Ska ha','Pass','Kvällar','Lediga dagar','Pass i annan grupp','Ledighet i block']];
+  m.G.forEach((G,g)=>staffIdx(g).forEach(p=>{const x=m.staff[p],s=A.persons[p];sum.push([x.name,gFull(g),x.pct/100,hNum(s.mins),hNum(s.target),s.n,s.ev,s.free,s.away,Math.round(s.blockPct*100)/100]);}));
+  const ws2=X.utils.aoa_to_sheet(sum);
+  for(let r=3;r<sum.length;r++){[2,9].forEach(c=>{const cl=ws2[X.utils.encode_cell({r,c})];if(cl&&typeof cl.v==='number')cl.z='0%';});}
+  ws2['!cols']=[{wch:24},{wch:16},{wch:12},{wch:9},{wch:9},{wch:7},{wch:8},{wch:12},{wch:16},{wch:15}];
+  X.utils.book_append_sheet(wb,ws2,'Summering');
+  const rr=[['Regler och lag'],[],['Krav','Resultat']];A.law.concat(A.rules,A.rec).forEach(r=>rr.push([r.paper,r.val]));
+  const ws3=X.utils.aoa_to_sheet(rr);ws3['!cols']=[{wch:60},{wch:60}];X.utils.book_append_sheet(wb,ws3,'Regler');
+  return wb;
+}
+function buildCSV(){
+  const q=v=>{const s=String(v??'');return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const lines=[['Namn','Grupp','Tjänstgöring',...M.days.map(dy=>`V${dy.w+1} ${DOW[dy.dow]}`),'Timmar'].map(q).join(';')];
+  M.G.forEach((G,g)=>staffIdx(g).forEach(p=>{const x=M.staff[p];const r=[x.name,gFull(g),x.pct+' %'];for(let d=0;d<M.N;d++)r.push(cellText(p,d));r.push(String(hNum(A.persons[p].mins)).replace('.',','));lines.push(r.map(q).join(';'));}));
+  return lines.join('\r\n');
+}
+function saveFile(filename,data,msg){
+  const blob=data instanceof Blob?data:new Blob([data]);
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},3000);
+  toast(msg||'Filen laddas ner. Öppna den i Excel för att skriva ut.');
+}
+const orgTitle=()=>S.settings.orgName||'Schemaplaneraren';
+const fileSafe=t=>t.replace(/[\\/:*?"<>|]+/g,'').trim()||'Schemaplaneraren';
+async function exportExcel(){
+  if(busy||!M||!M.P){toast('Lägg in personal och skapa ett schema först.');return;}
+  const btn=$('#btnExcel');btn.disabled=true;
+  try{
+    let X=window.XLSX;
+    // Excelbiblioteket ligger i lib/ bredvid sidan och laddas först när det behövs. Utan det blir det en CSV-fil.
+    if(!X){try{await loadScript('lib/xlsx.full.min.js');X=window.XLSX;}catch(e){X=null;}}
+    const fn=`${fileSafe(orgTitle())} grundschema ${M.WK} veckor`;
+    if(X){const out=X.write(buildWorkbook(X),{type:'array',bookType:'xlsx'});
+      saveFile(fn+'.xlsx',new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));}
+    else saveFile(fn+'.csv',new Blob(['﻿'+buildCSV()],{type:'text/csv;charset=utf-8'}));
+  }catch(e){console.error(e);toast('Filen kunde inte skapas. Försök igen.');}
+  btn.disabled=false;
+}
+
+/* ---------- toast ---------- */
+function toast(t,withUndo){const el=$('#toast');clearTimeout(toastT);
+  el.innerHTML=`<span>${esc(t)}</span>${withUndo&&hist.length?'<button id="toastUndo">Ångra</button>':''}`;el.hidden=false;
+  toastT=setTimeout(()=>el.hidden=true,5500);}
+
+/* ---------- händelser ---------- */
+function setTab(t){tab=t;closePop();renderAll();window.scrollTo({top:0});}
+$('#banner').addEventListener('click',e=>{if(e.target.closest('#bnUpdate'))updateSchedule();if(e.target.closest('#bnGuide'))openGuide();});
+$('#modeSeg').addEventListener('click',e=>{const b=e.target.closest('button[data-mode]');if(b){mode=b.dataset.mode;closePop();renderSchema();}});
+$('#wPrev').onclick=()=>{week=Math.max(0,week-1);renderSchema();};
+$('#wNext').onclick=()=>{week=Math.min(M.WK-1,week+1);renderSchema();};
+$('#btnSettings').onclick=()=>setTab(tab==='regler'?'schema':'regler');
+$('#btnExcel').onclick=exportExcel;
+$('#btnUndo').onclick=undo;
+$('#toast').addEventListener('click',e=>{if(e.target.id==='toastUndo'){$('#toast').hidden=true;undo();}});
+$('#status').addEventListener('click',e=>{
+  if(e.target.closest('#sToggle')){todoOpen=!todoOpen;renderStatus();return;}
+  const b=e.target.closest('button[data-k]');if(!b)return;const it=statusItems[+b.dataset.k];if(!it)return;
+  if(it.p>=0)openPerson(it.p);else if(it.d>=0){mode='vecka';week=M.days[it.d].w;renderSchema();}
+});
+$('#schemaView').addEventListener('click',e=>{if(busy)return;
+  const pb=e.target.closest('[data-paste]');if(pb){closePop();openPaste(pb.dataset.paste);return;}
+  const ab=e.target.closest('[data-add]');if(ab){closePop();addPerson(ab.dataset.add);return;}
+  const who=e.target.closest('.who');if(who){closePop();openPerson(+who.dataset.p);return;}
+  const day=e.target.closest('[data-day]');if(day){closePop();openDay(+day.dataset.day,+day.dataset.g);return;}
+  const c=e.target.closest('.cell,.c');if(c){e.stopPropagation();openDayPop(+c.dataset.p,+c.dataset.d,c);}
+});
+$('#pop').addEventListener('click',e=>{e.stopPropagation();const b=e.target.closest('button[data-act]');if(b)popAction(b);});
+$('#sheet').addEventListener('click',e=>{
+  if(e.target.closest('#shClose')){closeSheet();return;}
+  if(e.target.closest('#shEdit')){const z=$('#shZone');if(z)z.scrollIntoView({behavior:'smooth',block:'start'});return;}
+  const dn=e.target.closest('.dname');if(dn){openPerson(+dn.dataset.p);return;}
+  const ds=e.target.closest('[data-dscope]');if(ds&&sheet&&sheet.kind==='day'){openDay(sheet.d,+ds.dataset.dscope);return;}
+  const dst=e.target.closest('[data-dstep]');if(dst&&sheet&&sheet.kind==='day'){const nd=Math.max(0,Math.min(M.N-1,sheet.d+ +dst.dataset.dstep));openDay(nd,sheet.g);return;}
+  const cc=e.target.closest('.cc');if(cc&&!busy){e.stopPropagation();openDayPop(+cc.dataset.p,+cc.dataset.d,cc);return;}
+  const db=e.target.closest('[data-del]');if(db){const id=db.dataset.del;
+    if(delArm!==id){delArm=id;renderAll();return;}
+    delArm=null;const x=S.staff.find(y=>y.id===id);closeSheet();
+    edit(()=>{S.staff=S.staff.filter(y=>y.id!==id);delete S.locks[id];delete S.wishes[id];if(S.schedule)delete S.schedule[id];});
+    toast(`${x?x.name:'Personen'} är borttagen`,true);return;}
+  if(e.target.closest('#pasteReplace'))applyPaste(true);
+  if(e.target.closest('#pasteAdd'))applyPaste(false);
+});
+$('#sheet').addEventListener('input',e=>{if(e.target.id==='pasteArea')updatePastePreview();});
+$('#sheet').addEventListener('change',e=>{
+  const el=e.target;
+  if(el.id==='pasteGroup'&&sheet&&sheet.kind==='paste'){sheet.gid=el.value;updatePastePreview();return;}
+  const id=el.dataset.id,k=el.dataset.k;if(!id||!k)return;
+  const x=S.staff.find(s=>s.id===id);if(!x)return;
+  if(k==='name'){const v=el.value.replace(/\s+/g,' ').trim().slice(0,60);if(!v){el.value=x.name;toast('Namnet kan inte vara tomt.');return;}
+    if(v===x.name)return;
+    // namnbyte lägger inte om något och ritar inte om tabellen, så markören stannar där den är
+    snapshot();x.name=v;el.value=v;S.example=false;persist();renderBanner();renderSchema();$('#btnUndo').disabled=false;
+    $('#shName').textContent=v;$('#shAv').textContent=initials(v);return;}
+  if(k==='pct')edit(()=>{x.pct=Math.max(5,Math.min(100,Math.round(num(el.value,x.pct))));});
+  if(k==='group')edit(()=>{x.group=el.value;x.groups=null;});
+  if(k==='wg')edit(()=>{x.wg=WG.includes(el.value)?el.value:'A';});
+  if(k==='pref')edit(()=>{x.pref=el.value==='dag'||el.value==='kvall'?el.value:'';});
+  if(k==='earliest'||k==='latest'){const raw=el.value.trim();const t=raw?parseTime(raw):null;
+    if(raw&&!t){toast('Skriv tiden som till exempel 07:00, eller lämna tomt.');el.value=x[k]||'';return;}
+    const e0=k==='earliest'?t:x.earliest,l0=k==='latest'?t:x.latest;
+    if(e0&&l0&&hm(l0)<=hm(e0)){toast('Senast slut måste vara efter tidigast start.');el.value=x[k]||'';return;}
+    edit(()=>{x[k]=t;});}
+  if(k==='maxLen'){const raw=el.value.trim();const v=raw?num(raw,NaN):null;
+    if(raw&&(!isFinite(v)||v<1||v>12)){toast('Skriv antal timmar, till exempel 6, eller lämna tomt.');el.value=x.maxLen?String(x.maxLen/60).replace('.',','):'';return;}
+    edit(()=>{x.maxLen=v?Math.round(v*4)*15:null;});}
+  if(k==='type'){const boxes=[...document.querySelectorAll('#sheet input[data-k="type"]')],on=boxes.filter(b=>b.checked).map(b=>b.dataset.t);
+    if(!on.length){el.checked=true;toast('Personen behöver minst en passtyp.');return;}
+    edit(()=>{x.types=on.length===boxes.length?null:on;});}
+  if(k==='grp'){const boxes=[...document.querySelectorAll('#sheet input[data-k="grp"]')],on=boxes.filter(b=>b.checked).map(b=>b.dataset.g);
+    edit(()=>{x.groups=on.length===boxes.length?null:on;});}
+});
+$('#tab-regler').addEventListener('click',e=>{
+  const st=S.settings,t=e.target;
+  if(t.closest('#setBack')){setTab('schema');return;}
+  if(t.closest('#btnNew')){if(!M.P){toast('Lägg till personal först.');setTab('schema');return;}setTab('schema');solveFresh(true);return;}
+  if(t.closest('#st-fill')){edit(()=>{st.rules.fillWeekend=!st.rules.fillWeekend;});return;}
+  if(t.closest('#st-night')){
+    // nattpass av: tider som går över midnatt eller börjar före 05 måste bort först, annars försvinner de i tysthet
+    if(st.rules.night){const bad=st.types.flatMap(tp=>tp.variants.filter(x=>!okVariant(x[0],x[1],false)).map(x=>`${tp.name} ${x[0]}–${x[1]}`));
+      if(bad.length){toast(`Ta först bort nattiderna: ${bad.slice(0,3).join(', ')}${bad.length>3?' …':''}`);return;}}
+    edit(()=>{st.rules.night=!st.rules.night;});return;}
+  const acc=t.closest('[data-accent]');if(acc){edit(()=>{st.accent=acc.dataset.accent;},{stale:false});return;}
+  const lend=t.closest('[data-lend]');if(lend){if(lend.dataset.lend!==st.rules.lend)edit(()=>{st.rules.lend=lend.dataset.lend;});return;}
+  const ev=t.closest('[data-every]');if(ev){const E=+ev.dataset.every;if(E===st.rules.wkEvery)return;
+    // personalen fördelas om på de nya helglagen, jämnt inom varje grupp
+    edit(()=>{st.rules.wkEvery=E;const per={};S.staff.forEach(x=>{const i=per[x.group]=(per[x.group]||0);x.wg=WG[i%E];per[x.group]++;});});
+    toast(`Varje person arbetar ${EVERY[E]} helg. Personalen är fördelad på ${E} helglag och grundschemat är ${S.settings.weeks} veckor.`);return;}
+  if(t.closest('#bkSave')){saveBackup();return;}
+  if(t.closest('#bkOpen')){openBackup();return;}
+  if(t.closest('#rsDemo')){loadState(defaults(),'Demodata är inlagd');return;}
+  if(t.closest('#rsAll')){if(!resetArm){resetArm=true;renderRegler();return;}resetAll();return;}
+  const bal=t.closest('[data-balance]');if(bal){if(bal.dataset.balance!==st.rules.balance)edit(()=>{st.rules.balance=bal.dataset.balance;});return;}
+  const b=t.closest('[data-weeks]');if(b){const w=+b.dataset.weeks;
+    if(w!==st.weeks){edit(()=>{st.weeks=w;});toast(`Grundschemat är ${w} veckor. Uppdatera schemat för att lägga om det.`);}return;}
+  if(t.closest('#uadd')){const ids=allIds(),uid=nextId('u',ids),gid=nextId('g',ids);
+    edit(()=>{st.units.push({id:uid,name:'Ny avdelning',groups:[{id:gid,name:'Grupp 1'}]});st.demand[gid]={weekday:{},weekend:{}};});return;}
+  const gadd=t.closest('[data-gadd]');if(gadd){const u=st.units[+gadd.dataset.gadd],gid=nextId('g',allIds());
+    edit(()=>{u.groups.push({id:gid,name:'Grupp '+(u.groups.length+1)});st.demand[gid]=clone(st.demand[u.groups[0].id]||{weekday:{},weekend:{}});});return;}
+  const urm=t.closest('[data-unrm]');if(urm){const u=st.units[+urm.dataset.unrm],ids=u.groups.map(g=>g.id);
+    if(S.staff.some(x=>ids.includes(x.group))){toast(`Flytta eller ta bort personalen i ${u.name} först.`);return;}
+    edit(()=>{st.units.splice(+urm.dataset.unrm,1);ids.forEach(g=>delete st.demand[g]);remapCodes(c=>c.g&&ids.includes(c.g)?null:`${c.t}.${c.i}@${c.g||''}`.replace(/@$/,''));});
+    toast(`${u.name} är borttagen`,true);return;}
+  const grm=t.closest('[data-grm]');if(grm){const [ui,gi]=grm.dataset.grm.split('.').map(Number),u=st.units[ui],g=u.groups[gi],to=u.groups.find(x=>x.id!==g.id);
+    const n=S.staff.filter(x=>x.group===g.id).length;
+    edit(()=>{S.staff.forEach(x=>{if(x.group===g.id){x.group=to.id;x.groups=null;}});u.groups.splice(gi,1);delete st.demand[g.id];
+      remapCodes(c=>c.g===g.id?null:`${c.t}.${c.i}${c.g?'@'+c.g:''}`);});
+    toast(`${g.name} är borttagen${n?`. ${n} personer flyttades till ${to.name}`:''}`,true);return;}
+  if(t.closest('#tadd')){const id=nextId('t',allIds());
+    edit(()=>{st.types.push({id,name:'Nytt pass',color:PALETTE[st.types.length%PALETTE.length],eve:false,variants:[['08:00','16:00']]});});return;}
+  const trm=t.closest('[data-trm]');if(trm){const ti=+trm.dataset.trm,tp=st.types[ti];
+    edit(()=>{st.types.splice(ti,1);remapCodes(c=>c.t===tp.id?null:`${c.t}.${c.i}${c.g?'@'+c.g:''}`);S.staff.forEach(x=>{if(x.types){x.types=x.types.filter(y=>y!==tp.id);if(!x.types.length)x.types=null;}});});
+    toast(`${tp.name} är borttagen`,true);return;}
+  const tcol=t.closest('[data-tcol]');if(tcol){const tp=st.types[+tcol.dataset.tcol],i=PALETTE.indexOf(tp.color);
+    edit(()=>{tp.color=PALETTE[(i+1)%PALETTE.length];},{stale:false});return;}
+  const vadd=t.closest('[data-vadd]');if(vadd){const tp=st.types[+vadd.dataset.vadd],last=tp.variants[tp.variants.length-1];
+    if(tp.variants.length>=12){toast('Högst 12 tider per passtyp.');return;}
+    edit(()=>{tp.variants.push(last.slice());});return;}
+  const vrm=t.closest('[data-vrm]');if(vrm){const [ti,i]=vrm.dataset.vrm.split('.').map(Number),tp=st.types[ti];
+    edit(()=>{tp.variants.splice(i,1);remapCodes(c=>c.t!==tp.id?`${c.t}.${c.i}${c.g?'@'+c.g:''}`:c.i===i?null:`${c.t}.${c.i>i?c.i-1:c.i}${c.g?'@'+c.g:''}`);});return;}
+});
+$('#tab-regler').addEventListener('change',e=>{
+  const el=e.target,st=S.settings;
+  if(el.id==='st-fullTime'){const v=num(el.value,NaN);if(!isFinite(v)||v<20||v>45){toast('Heltid ska vara mellan 20 och 45 timmar per vecka.');el.value=String(st.fullTime).replace('.',',');return;}
+    edit(()=>{st.fullTime=Math.round(v*4)/4;});return;}
+  if(el.id==='st-break'){const v=Math.round(num(el.value,NaN));if(!isFinite(v)||v<0||v>60){toast('Skriv rasten i minuter, mellan 0 och 60.');el.value=st.breakMin;return;}
+    edit(()=>{st.breakMin=v;});return;}
+  if(el.id==='st-org'){const v=el.value.replace(/\s+/g,' ').trim().slice(0,60);if(v===st.orgName)return;edit(()=>{st.orgName=v;},{stale:false});return;}
+  if(el.dataset.rule){const k=el.dataset.rule,[lo,hi,step]=RULE_LIMITS[k],raw=num(el.value,NaN),v=Math.round(raw/step)*step;
+    if(!isFinite(raw)||v<lo||v>hi){toast(`Skriv ett tal mellan ${fmtH(lo)} och ${fmtH(hi)}.`);el.value=fmtH(st.rules[k]);return;}
+    edit(()=>{st.rules[k]=v;});
+    if((k==='dailyRest'&&v<LAW_DAILY)||(k==='weeklyRest'&&v<LAW_WEEKLY))toast('Kortare vila än arbetstidslagen kräver stöd i ert kollektivavtal.');return;}
+  if(el.dataset.un!==undefined){const u=st.units[+el.dataset.un],v=el.value.replace(/\s+/g,' ').trim().slice(0,30);if(!v){el.value=u.name;return;}
+    edit(()=>{u.name=v;},{stale:false});return;}
+  if(el.dataset.gn){const [ui,gi]=el.dataset.gn.split('.').map(Number),g=st.units[ui].groups[gi],v=el.value.replace(/\s+/g,' ').trim().slice(0,12);if(!v){el.value=g.name;return;}
+    edit(()=>{g.name=v;},{stale:false});return;}
+  if(el.dataset.tn!==undefined){const tp=st.types[+el.dataset.tn],v=el.value.replace(/\s+/g,' ').trim().slice(0,20);if(!v){el.value=tp.name;return;}
+    edit(()=>{tp.name=v;},{stale:false});return;}
+  if(el.dataset.tev!==undefined){const tp=st.types[+el.dataset.tev];edit(()=>{tp.eve=el.checked;});return;}
+  if(el.dataset.dm){const [g,wk,tid]=el.dataset.dm.split('.');const v=Math.round(num(el.value,NaN));
+    if(!isFinite(v)||v<0||v>20){toast('Skriv ett antal mellan 0 och 20.');el.value=st.demand[g][wk][tid];return;}
+    edit(()=>{st.demand[g][wk][tid]=v;});return;}
+  if(el.dataset.vt){const [ti,i,j]=el.dataset.vt.split('.').map(Number),tp=st.types[ti],cur=tp.variants[i];const tm=parseTime(el.value);
+    if(!tm){toast('Skriv tiden som till exempel 06:45.');el.value=cur[j];return;}
+    const nx=cur.slice();nx[j]=tm;
+    if(!st.rules.night){
+      if(hm(nx[1])<=hm(nx[0])){toast('Passet måste sluta efter att det börjar. Nattpass slås på under Vila och nattarbete.');el.value=cur[j];return;}
+      if(hm(nx[0])<300){toast('Utan nattpass får inga pass börja före 05:00. Nattpass slås på under Vila och nattarbete.');el.value=cur[j];return;}}
+    else if(!okVariant(nx[0],nx[1],true)){toast('Ett pass kan vara högst 16 timmar.');el.value=cur[j];return;}
+    edit(()=>{tp.variants[i]=nx;});}
+});
+$('#tab-welcome').addEventListener('click',e=>{const t=e.target;
+  if(t.closest('#wDemo')){loadState(defaults());return;}
+  if(t.closest('#wGuide')){openGuide();return;}
+  if(t.closest('#wOpen')){openBackup();return;}
+  if(t.closest('#gCancel')){guide=null;if(S.savedAt||S.schedule){welcome='';setTab('schema');}else{welcome='start';renderAll();}return;}
+  if(t.closest('#guAdd')){guide.units.push({name:'Avdelning '+(guide.units.length+1),groups:'Grupp 1'});renderWelcome();return;}
+  const rm=t.closest('[data-gurm]');if(rm){guide.units.splice(+rm.dataset.gurm,1);renderWelcome();return;}
+  if(t.closest('#gCreate'))createFromGuide();});
+$('#tab-welcome').addEventListener('input',e=>{const el=e.target;if(!guide)return;
+  if(el.id==='gName')guide.name=el.value;
+  if(el.dataset.gu!==undefined)guide.units[+el.dataset.gu][el.dataset.f]=el.value;
+  if(el.name==='gTpl')guide.template=el.value;
+  if(el.id==='gStaff')guide.staff=el.value;
+  if(el.id==='gStaff'||el.dataset.f==='groups'){const i=$('#gStaffInfo');if(i)i.textContent=guideStaffInfo();}});
+$('#tab-welcome').addEventListener('change',e=>{if(guide&&e.target.name==='gTpl')guide.template=e.target.value;});
+$('#scrim').onclick=closeSheet;
+document.addEventListener('click',e=>{if(!$('#pop').hidden&&!e.target.closest('#pop'))closePop();
+  if(resetArm&&!e.target.closest('#rsAll')){resetArm=false;if(tab==='regler')renderRegler();}
+  if(delArm&&!e.target.closest('[data-del]')){delArm=null;const p=sheet&&sheet.kind==='person'?M.staff.findIndex(x=>x.id===sheet.id):-1;if(p>=0)openPerson(p,true);}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#pop').hidden)closePop();else closeSheet();}
+  if((e.metaKey||e.ctrlKey)&&e.key==='z'&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo();}});
+window.addEventListener('resize',closePop);
+
+/* ---------- start ---------- */
+(function start(){
+  try{
+    if(welcome){tab='welcome';M=buildModel(S);computeAll();A=analyze();renderAll();return;}
+    if(S.schedule&&Object.keys(S.schedule).length){refresh();}
+    else{M=buildModel(S);computeAll();A=analyze();busy=true;renderAll();busy=false;if(S.staff.length)solveFresh(false);else renderAll();}
+  }catch(e){console.error(e);S=defaults();M=buildModel(S);computeAll();A=analyze();renderAll();solveFresh(false);}
+})();
+</script>

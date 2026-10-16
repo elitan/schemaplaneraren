@@ -1,0 +1,54 @@
+# Kör testerna och publicerar appen på GitHub Pages vid varje push till main.
+name: Tester och publicering
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Motorn
+        run: node tests/run.js --quick
+      - name: Gränssnittet
+        run: node tests/ui.js
+        env:
+          CHROME: /usr/bin/google-chrome
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bygg sidan
+        run: |
+          mkdir -p _site/lib
+          cp index.html _site/
+          cp lib/xlsx.full.min.js _site/lib/
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
