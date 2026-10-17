@@ -102,14 +102,14 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
       expect(await js('document.querySelectorAll(".prow").length===M.P'),'fel antal rader');
       await js('document.querySelector("#modeSeg [data-mode=vecka]").click()');});
     await step('Inställningar: lägga till en passtyp och ångra',async()=>{
-      await js('document.getElementById("btnSettings").click()');
+      await js('document.querySelector("#mainNav [data-tab=regler]").click()');
       const n=await js('S.settings.types.length');
       expect(await js('document.getElementById("tab-regler").innerText.includes("Passtyper och tider")'),'inställningarna visas inte');
       await js('document.getElementById("tadd").click()');
       expect(await js('S.settings.types.length')===n+1,'passtypen lades inte till');
       await js('document.getElementById("btnUndo").click()');
       expect(await js('S.settings.types.length')===n,'ångra tog inte bort passtypen');
-      await js('document.getElementById("setBack").click()');});
+      await js('document.querySelector("#mainNav [data-tab=schema]").click()');});
     await step('Klistra in från Excel visar förhandsvisning',async()=>{
       await js('document.querySelector("[data-paste]").click()');
       await js('const t=document.getElementById("pasteArea");t.value="Test Testsson\\t75\\nPer Persson\\t50%";t.dispatchEvent(new Event("input",{bubbles:true}))');
@@ -118,7 +118,7 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
     await step('Excel-underlaget har en rad per person',async()=>{
       expect(await js('buildCSV().split("\\r\\n").length===M.P+1'),'fel antal rader');});
     await step('Verksamhetens namn visas i toppfältet',async()=>{
-      await js('document.getElementById("btnSettings").click()');
+      await js('document.querySelector("#mainNav [data-tab=regler]").click()');
       await js('{const i=document.getElementById("st-org");i.value="Testgården";i.dispatchEvent(new Event("change",{bubbles:true}))}');
       expect(await js('document.getElementById("orgName").textContent==="Testgården"&&document.title.startsWith("Testgården")'),'namnet visas inte');});
     await step('Var tredje helg fördelar personalen på tre helglag',async()=>{
