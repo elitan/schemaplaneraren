@@ -37,12 +37,18 @@ p{margin:0}
 .bt>span{font-size:12.5px;color:var(--muted)}
 .mark{width:40px;height:40px;border-radius:11px;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none}
 .tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-/* huvudmenyn är flikar med en linje under, så att den inte förväxlas med väljarna (.seg) som sätter ett värde */
+/* Två slags kontroller som inte ska förväxlas:
+   - Flikar (.nav, .subnav) byter vad som visas: huvudmenyn, vecka eller hela perioden, en grupp eller alla.
+     Text med en linje under den aktiva fliken.
+   - Väljare (.seg) sätter ett värde som sparas, till exempel grundschemats längd. Grå ram med en vit knapp. */
 .nav{display:flex;gap:4px;border-bottom:1px solid var(--line-2);margin-top:-6px}
-.nav button{position:relative;height:40px;padding:0 14px;font-size:14px;font-weight:550;color:var(--muted);border-radius:8px 8px 0 0}
-.nav button:hover{color:var(--ink);background:var(--surface-3)}
-.nav button[aria-current="page"]{color:var(--ink)}
-.nav button[aria-current="page"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:2px;background:var(--accent)}
+.nav button,.subnav button{position:relative;height:40px;padding:0 14px;font-size:14px;font-weight:550;color:var(--muted);border-radius:8px 8px 0 0;white-space:nowrap}
+.nav button:hover,.subnav button:hover{color:var(--ink);background:var(--surface-3)}
+.nav button[aria-current],.subnav button[aria-current]{color:var(--ink)}
+.nav button[aria-current]::after,.subnav button[aria-current]::after{content:"";position:absolute;left:10px;right:10px;bottom:0;height:2px;border-radius:2px;background:var(--accent)}
+.nav button[aria-current]::after{bottom:-1px}
+.subnav{display:flex;gap:2px;flex-wrap:wrap}
+.subnav button{height:34px;padding:0 12px;font-size:13.5px}
 #tabs{align-self:flex-start}
 .btn{height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface);font-weight:550;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:var(--shadow-sm);white-space:nowrap}
 .btn:hover{background:var(--surface-2)}
@@ -384,10 +390,10 @@ textarea.paste{width:100%;min-height:160px;border:1px solid var(--line-2);border
   <section id="tab-schema" class="stack" aria-label="Schema">
     <section class="status" id="status"></section>
     <div class="bar">
-      <div class="seg sm" id="modeSeg" role="group" aria-label="Visning">
-        <button data-mode="vecka" aria-pressed="true">Vecka</button>
-        <button data-mode="period" aria-pressed="false">Hela perioden</button>
-      </div>
+      <nav class="subnav" id="modeSeg" aria-label="Visning">
+        <button data-mode="vecka" aria-current="true">Vecka</button>
+        <button data-mode="period">Hela perioden</button>
+      </nav>
       <div class="stepper" id="stepper">
         <button class="btn ghost icon" id="wPrev" aria-label="Föregående vecka"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
         <div class="lab" id="wLabel"></div>
@@ -1209,7 +1215,8 @@ function renderAll(){applyProfile();renderTabs();renderBanner();
 function renderTabs(){['schema','regler','welcome'].forEach(t=>$('#tab-'+t).hidden=t!==tab);
   $('.top .tools').hidden=tab==='welcome';
   $('#mainNav').hidden=tab==='welcome';
-  $('#mainNav').querySelectorAll('button').forEach(b=>{if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}
+  $('#mainNav').querySelectorAll('button').forEach(b=>setCurrent(b,b.dataset.tab===tab,'page'));}
+function setCurrent(b,on,v){if(on)b.setAttribute('aria-current',v||'true');else b.removeAttribute('aria-current');}
 function renderBanner(){
   const b=$('#banner');let h='';
   if(tab==='welcome'){b.hidden=true;return;}
@@ -1244,7 +1251,7 @@ function legend(){
   return `<div class="legend">${M.T.map((t,ti)=>used.has(ti)?`<span><i class="kc" style="${tStyle(ti)}"></i>${esc(t.name)} <span class="muted">${typeSpan(ti)}</span></span>`:'').join('')}<span><i style="box-shadow:inset 0 0 0 1.5px var(--warn)"></i>Önskar ledigt</span><span><i style="background:currentColor;opacity:.4;width:6px;height:6px;border-radius:50%"></i>Ändrat av dig</span><span><span class="awaytag">CD</span>I en annan grupp</span>${moved.size?'<span><i style="box-shadow:0 0 0 2px var(--accent)"></i>Justerat av systemet</span>':''}</div>`;
 }
 function renderSchema(){
-  $('#modeSeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===mode));
+  $('#modeSeg').querySelectorAll('button').forEach(b=>setCurrent(b,b.dataset.mode===mode));
   week=Math.max(0,Math.min(week,M.WK-1));
   $('#stepper').hidden=mode!=='vecka';
   $('#wLabel').textContent=`Vecka ${week+1} av ${M.WK}`;
@@ -1430,7 +1437,7 @@ function openDay(d,g,keep){
       <p class="small"><b>Lediga i ${esc(G.name)}:</b> ${freeTxt||'<span class="muted">ingen</span>'}</p></div>`;};
   const scopeG=g>=0?g:(prevG??0);
   showSheet(`<div class="shtop"><div class="dnav"><button class="btn ghost icon" data-dstep="-1" aria-label="Föregående dag"${d<=0?' disabled':''}>‹</button><h2>${DOWL[dy.dow]} <span class="muted">vecka ${dy.w+1}</span></h2><button class="btn ghost icon" data-dstep="1" aria-label="Nästa dag"${d>=m.N-1?' disabled':''}>›</button></div><button class="btn ghost" id="shClose">Stäng</button></div>
-    <div class="seg sm" role="group" aria-label="Visa"><button data-dscope="${scopeG}" aria-pressed="${!all}">${esc(gFull(scopeG))}</button><button data-dscope="-1" aria-pressed="${all}">Alla avdelningar och grupper</button></div>
+    <nav class="subnav" aria-label="Visa"><button data-dscope="${scopeG}"${all?'':' aria-current="true"'}>${esc(gFull(scopeG))}</button><button data-dscope="-1"${all?' aria-current="true"':''}>Alla avdelningar och grupper</button></nav>
     ${all?m.G.map((G,gi)=>groupHtml(gi)).join(''):groupHtml(g)}
     <p class="small muted">Klicka på ett namn för att se personen. Pass ändras genom att klicka på dem i schemat.</p>`);
   sheet.lastG=scopeG;
