@@ -37,6 +37,12 @@ p{margin:0}
 .bt>span{font-size:12.5px;color:var(--muted)}
 .mark{width:40px;height:40px;border-radius:11px;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none}
 .tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+/* huvudmenyn är flikar med en linje under, så att den inte förväxlas med väljarna (.seg) som sätter ett värde */
+.nav{display:flex;gap:4px;border-bottom:1px solid var(--line-2);margin-top:-6px}
+.nav button{position:relative;height:40px;padding:0 14px;font-size:14px;font-weight:550;color:var(--muted);border-radius:8px 8px 0 0}
+.nav button:hover{color:var(--ink);background:var(--surface-3)}
+.nav button[aria-current="page"]{color:var(--ink)}
+.nav button[aria-current="page"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:2px;background:var(--accent)}
 #tabs{align-self:flex-start}
 .btn{height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface);font-weight:550;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:var(--shadow-sm);white-space:nowrap}
 .btn:hover{background:var(--surface-2)}
@@ -367,11 +373,11 @@ textarea.paste{width:100%;min-height:160px;border:1px solid var(--line-2);border
   <header class="top">
     <div class="brand"><span class="mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 4l9 6.5"/><path d="M5.5 9v10.5h13V9"/><path d="M10 19.5v-5h4v5"/></svg></span><div class="bt"><h1 id="orgName">Schemaplaneraren</h1><span id="orgSub">Grundschema för vård och omsorg</span></div></div>
     <div class="tools">
-      <nav class="seg" id="mainNav" aria-label="Meny"><button data-tab="schema" aria-pressed="true">Schema</button><button data-tab="regler" aria-pressed="false">Inställningar</button></nav>
       <button class="btn ghost icon" id="btnUndo" title="Ångra senaste ändringen" aria-label="Ångra"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.5 2.5 6.5l3 3"/><path d="M2.5 6.5h7a4 4 0 0 1 0 8H7"/></svg></button>
       <button class="btn" id="btnExcel"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>Ladda ner Excel</button>
     </div>
   </header>
+  <nav class="nav" id="mainNav" aria-label="Meny"><button data-tab="schema" aria-current="page">Schema</button><button data-tab="regler">Inställningar</button></nav>
 
   <div id="banner" class="banner" hidden></div>
 
@@ -1202,7 +1208,8 @@ function renderAll(){applyProfile();renderTabs();renderBanner();
 }
 function renderTabs(){['schema','regler','welcome'].forEach(t=>$('#tab-'+t).hidden=t!==tab);
   $('.top .tools').hidden=tab==='welcome';
-  $('#mainNav').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tab===tab));}
+  $('#mainNav').hidden=tab==='welcome';
+  $('#mainNav').querySelectorAll('button').forEach(b=>{if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}
 function renderBanner(){
   const b=$('#banner');let h='';
   if(tab==='welcome'){b.hidden=true;return;}
@@ -1518,8 +1525,7 @@ function renderRegler(){
   const segBtns=(attr,opts,cur)=>`<div class="seg sm">${opts.map(([v,l])=>`<button ${attr}="${v}" aria-pressed="${String(cur)===String(v)}">${l}</button>`).join('')}</div>`;
   const ruleIn=(k,label,unit)=>`<div class="frow"><label for="st-${k}">${label}</label><span class="unit"><input id="st-${k}" class="time" data-rule="${k}" value="${fmtH(R[k])}">${unit||''}</span></div>`;
   const toggle=(id,on,label)=>`<div class="frow"><span>${label}</span><button class="tgl" id="${id}" role="switch" aria-checked="${on}" aria-label="${label}"><span class="toggle${on?' on':''}"></span></button></div>`;
-  $('#tab-regler').innerHTML=`<div class="sethead"><h2>Inställningar</h2></div>
-    <div class="cols">
+  $('#tab-regler').innerHTML=`<div class="cols">
     <div class="stack">
       <div class="card"><h2>Verksamhet</h2><div class="form">
         <div class="frow"><label for="st-org">Namn</label><input id="st-org" class="finput wide" value="${esc(st.orgName)}" placeholder="Till exempel Solgårdens äldreboende" autocomplete="off"></div>
