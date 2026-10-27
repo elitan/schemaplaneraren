@@ -191,7 +191,7 @@ function randomConfig(seed){
 const SCEN=[
   // gate: kvalitetsgränser som varje körning måste klara (gäller inte snabbläget, som kör färre iterationer)
   {name:'Standard (demodata, 4 grupper × 14, alla heltid)',make:()=>base(),
-    gate:{timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:2,perioder7:1,vikarieHelgH:WEEKEND_GAP,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20,dagSpridning:4,ledigSpridning:2,mittpassPct:5}},  // appen söker fem gånger längre
+    gate:{timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:2,perioder7:1,vikarieHelgH:WEEKEND_GAP,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20,dagSpridning:4,ledigSpridning:1,mittpassPct:5}},  // appen söker fem gånger längre
   {name:'Blandade tjänstgöringsgrader',make:()=>setAll(base(),(x,i)=>x.pct=[100,100,90,90,85,85,80,80,75,75,75,75,65,50][i%14]),gate:{timmarMiss:1,maxAvvikelseMin:30}},
   {name:'Mest deltid (50–60 %)',make:()=>setAll(base(),(x,i)=>x.pct=i%2?50:60)},
   {name:'Underbemannat: 10 per grupp',make:()=>{const S=base();groupsOf(S).forEach(g=>makeGroup(S,g,Array(10).fill(100)));return S;}},

@@ -558,10 +558,11 @@ const W={
   //    offLoose: per ledig vardag som inte sitter ihop med en helg, hälften för dagar efter helgen. Dagar före är gratis.
   sixWeek:150,sixSoft:15,sixRoll:30,longRun:160,run7:800,singleOff:150,block:10,offLoose:80,isolated:8,switch:3,edge:4,edgeWk:16,weekVar:.3,weekOver:25,maxWeekPct:20,
   // 6. Övrigt: hemgruppen, rättvis fördelning av kvällar (fair, per kvällspass i kvadrat från snittet) och av längsta
-  //    ledigheten i sträck (offFair, per dag i kvadrat från snittet), få pass och få flyttar vid ändring.
+  //    ledigheten i sträck (offFair, per dag i kvadrat från snittet, och offBand per dag utanför bandet på två värden),
+  //    få pass och få flyttar vid ändring.
   //    midDay: per timme som ett pass ligger från närmaste kant av arbetsdagen. Ett pass mitt på dagen tar hela dagen,
   //    så passen börjar hellre tidigt eller slutar sent.
-  away:200,fair:60,offFair:200,midDay:100,shift:10,stab:12};
+  away:200,fair:60,offFair:200,offBand:300,midDay:100,shift:10,stab:12};
 
 function pad(n){return String(n).padStart(2,'0')}
 function hm(s){const a=String(s||'0:0').split(':').map(Number);return (a[0]||0)*60+(a[1]||0)}
@@ -939,21 +940,25 @@ function evenWeeks(p,c,out){
 }
 // 6. Rättvis fördelning: varje person tar sin andel av kvällarna, lika stor som snittet i avdelningen,
 //    och har en längsta ledighet i sträck som är lika lång som för alla andra.
-function fairness(p,c,out){const m=M,dE=c.ev-m.shareE[p]*c.n,dF=m.offT[p]?c.maxFree-m.offT[p]:0;return m.w.fair*dE*dE+m.w.offFair*dF*dF;}
+//    Längsta ledigheten ska ligga i ett band på två värden kring snittet, till exempel 3 eller 4 dagar. Utanför bandet kostar
+//    varje dag offBand, så att ingen får två dagar mer eller mindre än någon annan.
+function fairness(p,c,out){const m=M,w=m.w,dE=c.ev-m.shareE[p]*c.n,t=m.offT[p];let pen=w.fair*dE*dE;
+  if(t){const dF=c.maxFree-t,lo=Math.floor(t);pen+=w.offFair*dF*dF+w.offBand*(Math.max(0,lo-c.maxFree)+Math.max(0,c.maxFree-lo-1));}
+  return pen;}
 // Längsta lediga följden i en rad, räknat runt så att slutet av grundschemat fortsätter i början.
 function maxOff(row,N){let f=-1;for(let d=0;d<N;d++)if(row[d]>=0){f=d;break;}if(f<0)return N;
   let best=0,run=0;for(let k=1;k<=N;k++){if(row[(f+k)%N]<0){if(++run>best)best=run;}else run=0;}return best;}
 // Målen som schemat ser ut nu. Kvällar: andelen i avdelningen, bland dem som kan ta kvällspass.
-// Längsta ledigheten: snittet bland alla, i förhållande till hur många lediga dagar var och en har, så att den som
-// arbetar deltid och har fler lediga dagar får längre ledighet. Den som har låsta lediga dagar räknas inte, eftersom
-// en låst ledighet, till exempel semester, inte går att jämna ut.
+// Längsta ledigheten: snittet bland dem med samma tjänstgöringsgrad, så att alla på heltid jämförs med varandra och
+// deltid med deltid. Finns färre än tre med samma grad jämförs personen med alla. Den som har låsta lediga dagar räknas
+// inte, eftersom en låst ledighet, till exempel semester, inte går att jämna ut.
 function retarget(){const m=M,N=m.N,ev=new Float64Array(m.U.length),n=new Float64Array(m.U.length);
   for(let p=0;p<m.P;p++){if(!m.shareE[p])continue;const row=m.row[p];for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;n[m.unit[p]]++;if(m.sh.eve[v])ev[m.unit[p]]++;}}
   for(let p=0;p<m.P;p++){const u=m.unit[p];if(m.shareE[p]&&n[u])m.shareE[p]=Math.max(.05,Math.min(.95,ev[u]/n[u]));}
-  let rs=0,rn=0;const free=new Int16Array(m.P);m.offT.fill(0);
-  for(let p=0;p<m.P;p++){if(!m.offOn[p])continue;const row=m.row[p];for(let d=0;d<N;d++)if(row[d]<0)free[p]++;
-    if(free[p]>0&&free[p]<N){rs+=maxOff(row,N)/free[p];rn++;}}
-  if(rn>1)for(let p=0;p<m.P;p++)if(m.offOn[p]&&free[p]>0&&free[p]<N)m.offT[p]=Math.max(2,rs/rn*free[p]);}
+  const mx=new Int16Array(m.P),by=new Map();let as=0,an=0;m.offT.fill(0);
+  for(let p=0;p<m.P;p++){if(!m.offOn[p]||!m.row[p].some(v=>v>=0))continue;mx[p]=maxOff(m.row[p],N);as+=mx[p];an++;
+    const k=m.staff[p].pct,b=by.get(k)||[0,0];b[0]+=mx[p];b[1]++;by.set(k,b);}
+  if(an>1)for(let p=0;p<m.P;p++)if(mx[p]){const b=by.get(m.staff[p].pct);m.offT[p]=Math.max(2,b[1]>=3?b[0]/b[1]:as/an);}}
 // 6. Övrigt: hemgruppen, antal pass och, när ett schema anpassas, så få flyttar som möjligt.
 function other(p,c,out){
   const m=M,N=m.N,row=m.row[p],w=m.w,b=p*N;let pen=w.away*c.away+w.shift*c.n+w.midDay*c.mid/60;
@@ -1035,8 +1040,39 @@ function trySwap(T){
    mot vilan bort, och den som då får för få timmar får nya pass. */
 function finish(){
   const m=M;
+  evenOff();
   for(let round=0;round<3;round++){let any=false;for(let p=0;p<m.P;p++)if(polish(p))any=true;if(!any)break;}
   repairRest();
+}
+/* Rättvis ledighet, sista steget. Sökningen är slumpmässig och kan lämna någon med för kort eller för lång längsta
+   ledighet. Den som ligger utanför bandet byter då en vardag med en kollega i avdelningen: den ena lämnar ett pass och
+   tar ett lika långt på en annan dag, och kollegan tvärtom, så att båda behåller exakt sina timmar. Alla sådana byten prövas och det som kostar minst görs. Under
+   reparationen väger bandet fem gånger mer, så att ett byte som jämnar ut ledigheten får kosta något i bemanningen.
+   Lagen, helgerna och timmarna väger fortfarande tyngre, så de rubbas inte. */
+function offOut(p){const t=M.offT[p];if(!t)return 0;const lo=Math.floor(t),c=maxOff(M.row[p],M.N);return c<lo?-1:c>lo+1?1:0;}
+function evenOff(){
+  const m=M,N=m.N,w=m.w,keep=w.offBand,nV=m.nV,nG=m.nG;retarget();w.offBand=keep*5;computeAll();
+  // dagarna som kan ändras för p: arbetsdagar intill den längsta ledigheten (förlänga), eller dagar i den (korta)
+  const flips=(p,longer)=>{const row=m.row[p],L=maxOff(row,N),out=new Set();
+    for(let d=0;d<N;d++){if(row[d]>=0||row[(d+N-1)%N]<0)continue;let e=d,k=0;while(row[(e+1)%N]<0&&k++<N)e=(e+1)%N;
+      if(((e-d+N)%N)+1!==L)continue;
+      if(longer){out.add((d+N-1)%N);out.add((e+1)%N);}else for(let x=d,j=0;j<L;j++,x=(x+1)%N)out.add(x);}
+    return [...out].filter(x=>x%7<5&&m.canW[p*N+x]);};
+  // q tar över passet v i grupp g på dag d
+  const can=(q,d,v,g)=>m.canW[q*N+d]&&m.row[q][d]<0&&m.allowV[q*nV+v]&&m.allowG[q*nG+g];
+  for(let round=0;round<4;round++){let any=false;
+    for(let p=0;p<m.P;p++){const dir=offOut(p);if(!dir)continue;
+      let best=-1e-9,mv=null;
+      for(const x of flips(p,dir<0)){const px=m.row[p][x],gx=m.grp[p*N+x];
+        for(let q=0;q<m.P;q++){if(q===p||m.unit[q]!==m.unit[p])continue;const qx=m.row[q][x],gq=m.grp[q*N+x];
+          // a lämnar dagen x till b, b lämnar en annan vardag y till a
+          const a=px>=0?p:q,b=px>=0?q:p,va=px>=0?px:qx,ga=px>=0?gx:gq;if(!can(b,x,va,ga))continue;
+          for(let y=0;y<N;y++){if(y===x||y%7>=5)continue;const vb=m.row[b][y],gb=m.grp[b*N+y];if(vb<0||m.sh.net[vb]!==m.sh.net[va]||!m.canW[b*N+y]||!can(a,y,vb,gb))continue;
+            txBegin();txSet(a,x,-1,-1);txSet(b,x,va,ga);txSet(b,y,-1,-1);txSet(a,y,vb,gb);const dl=txProbe();
+            if(dl<best){best=dl;mv=[a,b,x,y,va,ga,vb,gb];}}}}
+      if(mv){const [a,b,x,y,va,ga,vb,gb]=mv;txBegin();txSet(a,x,-1,-1);txSet(b,x,va,ga);txSet(b,y,-1,-1);txSet(a,y,vb,gb);txApply();any=true;}}
+    if(!any)break;}
+  w.offBand=keep;computeAll();
 }
 function polish(p){const m=M,N=m.N;let improved=false;
   for(let d=0;d<N;d++){const i=p*N+d,v=m.row[p][d];if(v<0||!m.canW[i])continue;const g=m.grp[i];
