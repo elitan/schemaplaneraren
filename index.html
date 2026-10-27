@@ -482,9 +482,9 @@ const W={
   rest:20000,weekRest:20000,lawSearch:2500,
   // 2. Bemanning: per person och timme som kurvan inte täcks. Helgtimmar som saknas går till vikarie och väger lättare.
   shortWd:220,shortWe:90,
-  //    Personal utöver kurvan kostar lite, i kvadrat så att den sprids. Efter 15 kostar den dubbelt, så att extra
-  //    personal hamnar på dagen.
-  surplus:3,surplusLate:2,
+  //    Personal utöver kurvan kostar i kvadrat, så att den sprids jämnt över veckans dagar och inte samlas en dag.
+  //    Efter 15 kostar den dubbelt, så att extra personal hamnar på dagen.
+  surplus:15,surplusLate:2,
   // 3. Exakta timmar, per timme fel och fyraveckorsperiod. Mer än ett pass övertid blir dyrare än en lucka i kurvan.
   hUnder:400,hOver:120,otTol:480,hOverHard:500,
   // 4. Helger: en arbetshelg utan pass, ett pass under en ledig helg, olika slags pass lördag och söndag.
@@ -993,6 +993,9 @@ function analyze(){
       if(x>0){if(k0<0){k0=k;kmax=0;}kmax=Math.max(kmax,x);mins+=x*sh.kLen[k];if(x>mx)mx=x;}
       else if(k0>=0){gaps.push({d,g,from:sh.TP[k0],to:sh.TP[k],n:kmax});k0=-1;}}
     missG[g][d]=mx;gapH[g][d]=mins/60;if(we)shortWe+=mins;else shortWd+=mins;}
+  // Hur jämnt bemanningen är fördelad över vardagarna: vid samma tid i samma grupp, största skillnaden mellan två vardagar.
+  let daySpread=0;
+  for(let g=0;g<m.nG;g++)for(let k=0;k<K;k++){let mn=1e9,mx=-1;for(let d=0;d<N;d++){if(m.days[d].we)continue;const c=m.cnt[(d*m.nG+g)*K+k];if(c<mn)mn=c;if(c>mx)mx=c;}if(mx>=0&&mx-mn>daySpread)daySpread=mx-mn;}
   const gName=g=>`${m.U[m.G[g].unit].name} ${m.G[g].name}`;
   // Listan "att titta på" visar bara det chefen behöver göra något åt: lagbrott, luckor på vardagar
   // och den som inte får sina timmar. Övriga avvikelser per person syns på personens egen sida.
@@ -1038,6 +1041,8 @@ function analyze(){
   const addRule=(paper,how,val,st)=>rules.push({n:rules.length+1,paper,how,val,st});
   addRule('Bemanningskurvan täcks','Från varje tid i kurvan ska minst så många arbeta, fram till nästa tid. Personal utöver kurvan läggs helst på dagen.',
     `Vardagar ${pc(shortWd,needWd)} % av timmarna, helger ${pc(shortWe,needWe)} %`,shortWd?'bad':shortWe?'warn':'ok');
+  addRule('Jämn bemanning över veckan','Personal utöver kurvan sprids jämnt över vardagarna, så att det inte är många en dag och bara det nödvändiga en annan.',
+    N&&P?`Vid samma tid skiljer det högst ${daySpread} ${daySpread===1?'person':'personer'} mellan två vardagar i en grupp`:'–',daySpread<=3?'ok':'warn');
   addRule('Personalen jobbar i sin egen grupp',{aldrig:'Ingen lånas till en annan grupp. Bara du flyttar personal mellan grupper.',behov:'Motorn lånar personal till en annan grupp i avdelningen bara när bemanningen kräver det. Mellan avdelningar flyttar bara du.',
     fritt:'Motorn får lägga personal i alla grupper i avdelningen. Mellan avdelningar flyttar bara du.'}[r.lend],
     totN?`${Math.round((1-totAway/totN)*100)} % av passen i hemgruppen`:'–','ok');
@@ -1056,7 +1061,7 @@ function analyze(){
      val:`Tyngsta vecka ${Math.round(maxRatio*100)} % av snittet`,st:maxRatio<=1+W.maxWeekPct/100+.01?'ok':'warn'},
     {n:'E',paper:'Lång vila runt ledigheten',how:'Sista passet före en ledighet slutar så tidigt som möjligt och första passet efter börjar så sent som möjligt. Lediga helger prioriteras, så den som är ledig i helgen slipper helst fredagskvällen.',
      val:wkN?`Lediga helger ger i snitt ${Math.round(wkSum/wkN/60)} h vila, kortast ${Math.floor(wkMinAll/60)} h`:'Inga lediga helger',st:'ok'}];
-  return {persons,flags,missG,gapH,gaps,capacity,todo,hard,soft,shortWd,shortWe,needWd,needWe,dailyV,weeklyV,rules,rec,law,hoursOk,blockPct,maxRun,minGapAll,totAway,totN};
+  return {persons,flags,missG,gapH,gaps,daySpread,capacity,todo,hard,soft,shortWd,shortWe,needWd,needWe,dailyV,weeklyV,rules,rec,law,hoursOk,blockPct,maxRun,minGapAll,totAway,totN};
 }
 </script>
 

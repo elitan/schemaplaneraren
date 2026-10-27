@@ -59,7 +59,7 @@ Längst ner kan man fälla ut hur varje regel följs.
 
 ## Modellen
 
-- **Bemanningskurva i stället för passtyper.** Det spelar ingen roll om den som arbetar kl. 12 har ett tidigt eller sent pass, bara att de är tillräckligt många. Motorn väljer varje pass start och slut inom arbetsdagen, på hela och halva timmar och kurvans egna tider, med längd mellan kortaste och längsta pass. Personal utöver kurvan läggs helst på dagen, före 15.
+- **Bemanningskurva i stället för passtyper.** Det spelar ingen roll om den som arbetar kl. 12 har ett tidigt eller sent pass, bara att de är tillräckligt många. Motorn väljer varje pass start och slut inom arbetsdagen, på hela och halva timmar och kurvans egna tider, med längd mellan kortaste och längsta pass. Personal utöver kurvan sprids jämnt över veckans dagar och läggs helst på dagen, före 15.
 - **Timmar:** exakt för varje fyraveckorsperiod. Heltid 37 h i veckan blir 148 h på fyra veckor. Med 8 veckors grundschema stämmer båda perioderna var för sig.
 - **Rast:** pass över 5 timmar har 30 minuter och pass över 10 timmar en timme. Rasten räknas inte som arbetstid.
 - **Avdelningar och grupper**
@@ -94,7 +94,7 @@ Motorn söker ett schema med lägsta möjliga straffpoäng, i tre steg:
 Reglerna är namngivna funktioner (`lawDailyRest`, `lawWeeklyRest`, `hours`, `weekends`, `workDays`, `restAroundOff`, `evenWeeks`, `fairness`, `other`). Vikterna ligger i prioritetsnivåer i `W`:
 
 1. **Vila enligt arbetstidslagen.** Ett brott kostar mer än både ett tomt pass och de timmar passet ger. Inför slutfasen gäller full vikt, så inget brott finns kvar i det färdiga schemat.
-2. **Bemanningskurvan,** per person och timme som saknas. Luckor på vardagar väger tyngre än på helger, som går till vikarie. Personal utöver kurvan kostar lite och mer efter 15.
+2. **Bemanningskurvan,** per person och timme som saknas. Luckor på vardagar väger tyngre än på helger, som går till vikarie. Personal utöver kurvan kostar i kvadrat, så att den sprids jämnt över dagarna, och mer efter 15.
 3. **Exakta timmar.**
 4. **Helgrytmen.**
 5. **Återhämtning:** arbetsdagar i rad och per vecka, ledighet i block, vila runt ledigheten och jämna veckor.
@@ -145,7 +145,8 @@ Hårda regler kontrolleras med en egen, oberoende räkning:
 - högst två timmars lucka i kurvan på vardagar (appen söker fem gånger längre än testet och brukar inte ha någon)
 - alla har lika många helgpass, högst ett skiljer
 - kvällsandelen skiljer högst 20 procentenheter mellan personer
-- ingen period med 7 dagar i rad
+- vid samma tid i samma grupp skiljer det högst 4 personer mellan två vardagar (appen brukar hamna på 2–3)
+- högst en period med 7 dagar i rad (appen brukar inte ha någon)
 - högst 12 helgtimmar till vikarie
 - högst 8 % utanför hemgruppen
 

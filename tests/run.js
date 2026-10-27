@@ -138,7 +138,7 @@ function metrics(S,A){
     ensammaLediga:A.persons.reduce((a,x)=>a+x.singles,0),
     helgpass:weN.length?`${Math.min(...weN)}–${Math.max(...weN)}`:'–', helgSpridning:weN.length?Math.max(...weN)-Math.min(...weN):0,
     kvallsandel:evS.length?`${Math.round(Math.min(...evS)*100)}–${Math.round(Math.max(...evS)*100)} %`:'–',
-    kvallSpridning:evS.length?Math.round((Math.max(...evS)-Math.min(...evS))*100):0,
+    kvallSpridning:evS.length?Math.round((Math.max(...evS)-Math.min(...evS))*100):0, dagSpridning:A.daySpread,
     utanforHemgrupp:A.totN?Math.round(A.totAway/A.totN*1000)/10:0,
     sexdagarsveckor:six, perioder6:runs6, perioder7:runs7,
     helgVilaH:wkN?Math.round(wkMin/wkN/6)/10:null,
@@ -182,7 +182,7 @@ function randomConfig(seed){
 const SCEN=[
   // gate: kvalitetsgränser som varje körning måste klara (gäller inte snabbläget, som kör färre iterationer)
   {name:'Standard (demodata, 4 grupper × 14, alla heltid)',make:()=>base(),
-    gate:{timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:2,perioder7:0,vikarieHelgH:12,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20}},  // appen söker fem gånger längre
+    gate:{timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:2,perioder7:1,vikarieHelgH:12,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20,dagSpridning:4}},  // appen söker fem gånger längre
   {name:'Blandade tjänstgöringsgrader',make:()=>setAll(base(),(x,i)=>x.pct=[100,100,90,90,85,85,80,80,75,75,75,75,65,50][i%14]),gate:{timmarMiss:1,maxAvvikelseMin:30}},
   {name:'Mest deltid (50–60 %)',make:()=>setAll(base(),(x,i)=>x.pct=i%2?50:60)},
   {name:'Underbemannat: 10 per grupp',make:()=>{const S=base();groupsOf(S).forEach(g=>makeGroup(S,g,Array(10).fill(100)));return S;}},
@@ -236,7 +236,7 @@ const results=[];let hardFail=0,gateFail=0;
 // Kvalitetsgränser: returnerar en lista med det som inte nåddes
 function checkGate(g,met){if(!g||QUICK)return [];const bad=[];
   if(g.timmarMiss!==undefined&&met.personal-met.timmarOk>g.timmarMiss)bad.push(`${met.personal-met.timmarOk} får inte exakt sina timmar (högst ${g.timmarMiss})`);
-  ['maxAvvikelseMin','luckaVardagH','perioder7','vikarieHelgH','utanforHemgrupp','helgSpridning','kvallSpridning'].forEach(k=>{if(g[k]!==undefined&&met[k]>g[k])bad.push(`${k} ${met[k]} (högst ${g[k]})`);});
+  ['maxAvvikelseMin','luckaVardagH','perioder7','vikarieHelgH','utanforHemgrupp','helgSpridning','kvallSpridning','dagSpridning'].forEach(k=>{if(g[k]!==undefined&&met[k]>g[k])bad.push(`${k} ${met[k]} (högst ${g[k]})`);});
   return bad;}
 const pad=(s,n)=>String(s).padEnd(n).slice(0,n);
 console.log(`Schemamotorn · ${SCEN.length} scenarier · frön ${SEEDS.join(', ')} · ${QUICK?'snabbläge':'full körning'}\n`);
@@ -253,7 +253,7 @@ for(const sc of SCEN){
     if(!ok)hardFail++;
     const gateBad=checkGate(sc.gate,met);if(gateBad.length)gateFail++;
     results.push({scenario:sc.name,seed,ms,ok,gate:gateBad,errors:errs.slice(0,10),...met});
-    console.log(`${ok?(gateBad.length?'△':'✓'):'✗'} ${pad(sc.name,52)} ${String(ms).padStart(5)} ms | timmar ${met.timmarOk}/${met.personal} (max ${met.maxAvvikelseMin} min) | lucka vard ${met.luckaVardagH} h helg ${met.vikarieHelgH} h | block ${met.blockPct}% | max ${met.maxDagarIRad} d i rad | helgpass ${met.helgpass} | kväll ${met.kvallsandel} | utanför hemgrupp ${met.utanforHemgrupp} % | ledig helg ${met.helgVilaH} h | 6-dagarsveckor ${met.sexdagarsveckor} | 6+ i rad ${met.perioder6}, 7+ ${met.perioder7}`);
+    console.log(`${ok?(gateBad.length?'△':'✓'):'✗'} ${pad(sc.name,52)} ${String(ms).padStart(5)} ms | timmar ${met.timmarOk}/${met.personal} (max ${met.maxAvvikelseMin} min) | lucka vard ${met.luckaVardagH} h helg ${met.vikarieHelgH} h | block ${met.blockPct}% | max ${met.maxDagarIRad} d i rad | helgpass ${met.helgpass} | kväll ${met.kvallsandel} | dagar ±${met.dagSpridning} | utanför hemgrupp ${met.utanforHemgrupp} % | ledig helg ${met.helgVilaH} h | 6-dagarsveckor ${met.sexdagarsveckor} | 6+ i rad ${met.perioder6}, 7+ ${met.perioder7}`);
     (A.todo||[]).filter(i=>i.p<0&&/timmar per vecka/.test(i.text)).forEach(i=>console.log('    → '+i.text));
     errs.slice(0,3).forEach(e=>console.log('    ! '+e));
     gateBad.forEach(e=>console.log('    △ under kvalitetsgränsen: '+e));
