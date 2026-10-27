@@ -58,10 +58,10 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
       const t=await js('document.getElementById("status").innerText');
       expect(/Schemat är klart|behöver åtgärdas/.test(t),'oväntad status: '+t);});
     await step('Schemat visas per grupp',async()=>{
-      const r=await js('({g:document.querySelectorAll(".wt .gh").length,c:document.querySelectorAll(".wt .cell.kc").length,G:M.G.length})');
+      const r=await js('({g:document.querySelectorAll(".wt .gh").length,c:document.querySelectorAll(".wt .cell.sh .tl i").length,G:M.G.length})');
       expect(r.g===r.G&&r.c>50,`grupper ${r.g} av ${r.G}, pass ${r.c}`);});
     await step('Klick på ett pass öppnar dagmenyn, och ett nytt pass sparas och anpassas',async()=>{
-      await js('document.querySelector(".wt .cell.kc").click()');
+      await js('document.querySelector(".wt .cell.sh").click()');
       expect(await js('!document.getElementById("pop").hidden&&document.getElementById("pop").innerText.includes("Grupp")'),'dagmenyn öppnades inte');
       // välj en annan sluttid och spara
       await js('{const e=document.getElementById("popEn");e.selectedIndex=e.selectedIndex>0?e.selectedIndex-1:e.selectedIndex+1;document.querySelector("#pop [data-act=set]").click()}');
@@ -83,6 +83,7 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
       const t=await js('document.getElementById("sheet").innerText');
       expect(/kurvan täcks|under kurvan/.test(t)&&/Lediga i/.test(t),'dagvyn saknar innehåll');
       expect(await js('!!document.querySelector("#sheet .cchart")'),'dagvyn saknar diagrammet');
+      expect(await js('document.querySelectorAll("#sheet .gbar").length>0&&document.querySelectorAll("#sheet .gbar").length===document.querySelectorAll("#sheet .grow").length'),'dagvyn saknar tidsdiagrammet');
       await js('document.querySelector("[data-dscope=\'-1\']").click()');
       expect(await js('document.querySelectorAll("#sheet .dgroup").length===M.G.length'),'alla grupper visas inte');
       await js('document.querySelector("[data-dstep=\'1\']").click()');

@@ -186,7 +186,16 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .cell.off{color:var(--faint);font-weight:400}
 .cell{flex-direction:column;line-height:1.15}
 .cell small{font-size:10px;font-weight:500;opacity:.8}
-.cell.kc{background:var(--c);color:var(--on)}
+/* Passets tid på dygnet som en mjuk färg: varm för dag, grön för mellan, sval för kväll.
+   --kb är bakgrunden, --kf stapeln och --kc den lilla rutan i periodvyn. */
+.k0{--kb:#fdf0d9;--kf:#c46f12;--kc:#efb35f}
+.k1{--kb:#e3f1ec;--kf:#2f7d6f;--kc:#8cc6b8}
+.k2{--kb:#e6ebf7;--kf:#3e5a92;--kc:#8399c9}
+.cell.sh{background:var(--kb,var(--accent-tint));color:var(--ink);height:auto;min-height:38px;padding:5px 6px;gap:3px}
+/* passets läge i arbetsdagen: hela spåret är arbetsdagen, stapeln är passet */
+.tl{position:relative;display:block;width:100%;height:5px;border-radius:3px;background:rgba(7,16,19,.08);flex:none}
+.tl i{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--kf,var(--accent))}
+.legend .tl{width:44px}
 .cell small.away{font-weight:600;opacity:.9}
 .cell.lockd::before{content:"";position:absolute;top:4px;right:5px;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.55}
 .cell.flag{box-shadow:inset 0 0 0 2px var(--bad)}
@@ -230,8 +239,8 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .c.moved{box-shadow:0 0 0 2px var(--accent)}
 .pstat{text-align:right;font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
 .pstat .bad{color:var(--bad)}
-.kc{background:var(--c)}
-.c.awayc::after{content:"";position:absolute;right:2px;bottom:2px;width:4px;height:4px;border-radius:50%;background:var(--on);opacity:.8}
+.kc{background:var(--kc,var(--c))}
+.c.awayc::after{content:"";position:absolute;right:2px;bottom:2px;width:4px;height:4px;border-radius:50%;background:var(--ink);opacity:.7}
 .awaytag{font-size:10px;font-weight:600;border-radius:4px;padding:0 4px;background:var(--surface-3);color:var(--ink-2)}
 .dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
 
@@ -342,6 +351,20 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .dth{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
 .dth .muted{margin-left:auto;font-weight:400}
 .dlist{list-style:none;margin:0;padding:0 0 0 17px;display:flex;flex-direction:column}
+/* dagens tidsdiagram: bemanningen överst, sedan en rad per person på samma tidsaxel */
+.gantt{position:relative;--nm:118px;padding-bottom:18px}
+.ghead,.grow{display:grid;grid-template-columns:var(--nm) minmax(0,1fr);align-items:center}
+.ghead{align-items:end;padding-bottom:6px}
+.ghead .gl{font-size:11px;color:var(--muted);padding-bottom:4px}
+.grow{min-height:28px;border-top:1px solid var(--line)}
+.grow .gn{display:flex;align-items:center;gap:5px;min-width:0;padding-right:8px}
+.grow .dname{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gtrack{position:relative;height:20px}
+.gbar{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--kf,var(--accent));color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums;z-index:1}
+.gbar.in{background:repeating-linear-gradient(135deg,var(--kf,var(--accent)) 0 6px,color-mix(in srgb,var(--kf,var(--accent)) 72%,#fff) 6px 12px)}
+.gticks{position:absolute;inset:0 0 0 var(--nm);pointer-events:none}
+.gticks span{position:absolute;top:0;bottom:18px;border-left:1px dashed var(--line-2)}
+.gticks b{position:absolute;bottom:-18px;transform:translateX(-50%);font-size:10px;color:var(--faint);font-weight:400}
 .dlist li{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)}
 .dlist li:last-child{border-bottom:0}
 .dtime{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink-2)}
@@ -355,12 +378,14 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .cal{display:grid;grid-template-columns:30px repeat(7,minmax(0,1fr));gap:4px;font-size:11px}
 .cal .hd{color:var(--faint);text-align:center;font-size:10.5px}
 .cal .wn{color:var(--muted);align-self:center;font-size:11px}
-.cc{border-radius:7px;background:var(--surface-2);min-height:40px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;padding:4px 5px;text-align:left;min-width:0}
+.cc{border-radius:7px;background:var(--surface-2);min-height:44px;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;padding:4px 5px;text-align:left;min-width:0}
 .cc:hover{outline:2px solid var(--ink);outline-offset:-1px}
-.cc .t{font-size:10.5px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+.cc .t{font-size:10.5px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .cc.we{background:var(--surface-3)}
 .cc.flag{box-shadow:inset 0 0 0 2px var(--bad)}
-.cc.kc{background:var(--c);color:var(--on)}
+.cc.sh{background:var(--kb,var(--accent-tint));color:var(--ink)}
+.cc .tl{width:100%}
+.cc .tl{height:4px;margin-top:3px}
 .cc .t.aw{font-size:9.5px;font-weight:500;opacity:.85}
 .list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .list li{display:flex;gap:10px;align-items:baseline;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}
@@ -452,8 +477,8 @@ const WEEK_OPTIONS=[4,8];
 const ACCENTS=[['#2f5d8a','Blå'],['#2e7a5a','Grön'],['#6b4c9a','Lila'],['#a5512c','Rost'],['#3f4a56','Grafit']];
 const RULES={maxRow:5,maxWeekDays:6,lend:'behov'};
 const LEND_LABEL={aldrig:'Aldrig',behov:'Vid behov',fritt:'Fritt'};
-// Passen färgas efter när de slutar: dag före 16, mellan före 19, kväll senare. Kvällarna fördelas rättvist.
-const KINDS=[{name:'Dag',color:'#f1a238',hint:'slutar senast 16'},{name:'Mellan',color:'#f8dcae',hint:'slutar senast 19'},{name:'Kväll',color:'#8fb3de',hint:'slutar efter 19'}];
+// Passens sort efter när de slutar: dag före 16, mellan före 19, kväll senare. Kvällarna fördelas rättvist.
+const KINDS=[{name:'Dag',hint:'slutar senast 16'},{name:'Mellan',hint:'slutar senast 19'},{name:'Kväll',hint:'slutar efter 19'}];
 function kindOf(st,en){return en<=16*60?0:en<=19*60?1:2;}
 const WG='AB';   // helglag: lag A arbetar helgen i udda veckor, lag B i jämna. Alla arbetar varannan helg.
 function wgIndex(x){return x&&x.wg==='B'?1:0;}
@@ -513,9 +538,6 @@ function num(v,def){if(typeof v==='number'&&isFinite(v))return v;const s=String(
 function parseTime(v){const s=String(v??'').trim().replace(/[.,]/g,':');let m=s.match(/^(\d{1,2}):(\d{2})$/)||s.match(/^(\d{1,2})(\d{2})$/);
   if(!m){const h=s.match(/^(\d{1,2})$/);if(h)m=[0,h[1],'00'];}
   if(!m)return null;const h=+m[1],mi=+m[2];if(h===24&&mi===0)return '24:00';if(h>23||mi>59)return null;return pad(h)+':'+pad(mi);}
-// Textfärg som syns mot passfärgen.
-function onColor(hex){const n=parseInt(String(hex).slice(1),16);if(!isFinite(n))return '#071013';const r=n>>16&255,g=n>>8&255,b=n&255;
-  return (0.299*r+0.587*g+0.114*b)>150?'#071013':'#ffffff';}
 const cleanId=v=>String(v??'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,16);
 const cp=o=>JSON.parse(JSON.stringify(o));
 // Antal som kurvan kräver vid en tidpunkt: värdet från den senaste tiden som inte är senare.
@@ -1087,7 +1109,11 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function initials(n){return String(n).split(/\s+/).filter(Boolean).map(x=>x[0]).join('').slice(0,2).toUpperCase()||'?'}
 function range(v){const x=M.sh.V[v];return `${fmtShort(x.st)}–${fmtShort(x.en)}`}
 // passets färg efter tid på dygnet, som CSS-variabler, så att celler, prickar och remsor färgas likadant
-function tStyle(k){const c=KINDS[k].color;return `--c:${c};--on:${onColor(c)}`}
+// passets tid på dygnet som klass, se .k0–.k2
+function kcls(v){return ' k'+M.sh.kind[v];}
+// Passets läge i arbetsdagen som en stapel på ett spår: tidigt pass till vänster, kvällspass till höger.
+function tl(v){const st=S.settings,d0=hm(st.day.start),d1=hm(st.day.end),x=M.sh.V[v],f=t=>Math.max(0,Math.min(100,(t-d0)/(d1-d0)*100));
+  return `<span class="tl" aria-hidden="true"><i style="left:${f(x.st).toFixed(1)}%;width:${Math.max(3,f(x.en)-f(x.st)).toFixed(1)}%"></i></span>`;}
 function typeName(v){return KINDS[M.sh.kind[v]].name}
 function clone(o){return o==null?o:JSON.parse(JSON.stringify(o))}
 function pct(x){return Math.round(x*100)+' %'}
@@ -1242,8 +1268,11 @@ function renderStatus(){
     (todoOpen&&items.length?`<ul class="todo">${items.map((i,k)=>`<li><button data-k="${k}"><i class="sev ${i.sev}"></i><span class="tname">${i.p>=0?esc(M.staff[i.p].name):'Bemanning'}</span><span class="what">${esc(i.text)}</span><span class="when">${i.d>=0?dShort(M.days[i.d]):''}</span></button></li>`).join('')}</ul>`:'');
 }
 
-function legend(){
-  return `<div class="legend">${KINDS.map((t,k)=>`<span><i class="kc" style="${tStyle(k)}"></i>${t.name} <span class="muted">${t.hint}</span></span>`).join('')}<span><i style="background:currentColor;opacity:.4;width:6px;height:6px;border-radius:50%"></i>Ändrat av dig</span><span><span class="awaytag">CD</span>I en annan grupp</span>${moved.size?'<span><i style="box-shadow:0 0 0 2px var(--accent)"></i>Justerat av systemet</span>':''}</div>`;
+function legend(kind){
+  const st=S.settings;
+  const kinds=KINDS.map((t,k)=>`<span><i class="kc k${k}"></i>${t.name} <span class="muted">${t.hint}</span></span>`).join('');
+  const how=kind==='period'?kinds:`${kinds}<span><span class="tl"><i style="left:8%;width:52%"></i></span>Stapeln visar var i arbetsdagen ${st.day.start}–${st.day.end} passet ligger</span>`;
+  return `<div class="legend">${how}<span><i style="background:currentColor;opacity:.4;width:6px;height:6px;border-radius:50%"></i>Ändrat av dig</span><span><span class="awaytag">CD</span>I en annan grupp</span>${moved.size?'<span><i style="box-shadow:0 0 0 2px var(--accent)"></i>Justerat av systemet</span>':''}</div>`;
 }
 function renderSchema(){
   $('#modeSeg').querySelectorAll('button').forEach(b=>setCurrent(b,b.dataset.mode===mode));
@@ -1267,11 +1296,11 @@ function weekTable(){
     if(!ps.length)h+=`<tr><td colspan="${cols}" class="empty">Ingen personal i ${esc(G.name)} ännu.</td></tr>`;
     ps.forEach(p=>{const x=m.staff[p],s=a.persons[p];
       h+=`<tr><th class="nmc"><button class="who" data-p="${p}"><span class="av">${esc(initials(x.name))}</span><span class="nmw"><b>${esc(x.name)}</b><small>${x.pct} %</small></span></button></th>`;
-      days.forEach(dy=>{const i=p*m.N+dy.d,v=m.row[p][dy.d];let cls='cell '+(v>=0?'kc':'off');
+      days.forEach(dy=>{const i=p*m.N+dy.d,v=m.row[p][dy.d];let cls='cell '+(v>=0?'sh'+kcls(v):'off');
         if(m.lock[i]!==-2)cls+=' lockd';if(a.flags[i]===2)cls+=' flag';if(moved.has(i))cls+=' moved';
         const where=v>=0?awayLabel(p,dy.d):'';
         const t=`${esc(x.name)}, ${dLong(dy)}: ${v>=0?esc(typeName(v))+' '+range(v)+(where?' i '+esc(where):''):'ledig'}`;
-        h+=`<td class="${dy.we?'we':''}"><button class="${cls}"${v>=0?` style="${tStyle(m.sh.kind[v])}"`:''} data-p="${p}" data-d="${dy.d}" title="${t}" aria-label="${t}">${v>=0?range(v)+(where?`<small class="away">i ${esc(where)}</small>`:''):''}</button></td>`;});
+        h+=`<td class="${dy.we?'we':''}"><button class="${cls}" data-p="${p}" data-d="${dy.d}" title="${t}" aria-label="${t}">${v>=0?tl(v)+range(v)+(where?`<small class="away">i ${esc(where)}</small>`:''):''}</button></td>`;});
       h+=`<td class="hc">${fmtDur(s.weeks[week]||0)} h</td></tr>`;});
     if(ps.length||curveHas(G.id))h+=`<tr class="cov"><th class="nmc">Bemanning ${esc(G.name)}</th>${days.map(dy=>{const miss=a.missG[g][dy.d],vik=dy.we;
       return `<td class="${dy.we?'we':''}"><button class="covb" data-day="${dy.d}" data-g="${g}" title="Se hur ${DOWL[dy.dow].toLowerCase()} är bemannad i ${esc(G.name)}">${miss?`<span class="tag ${vik?'warn':'bad'}">${vik?'vikarie':miss+' saknas'}</span>`:'<span class="okc">✓</span>'}</button></td>`;}).join('')}<td></td></tr>`;
@@ -1292,13 +1321,13 @@ function periodView(){
           let cls='c '+(v>=0?'kc':'free'+(dy.we?' we':''));if(a.flags[i]===2)cls+=' flag';if(moved.has(i))cls+=' moved';
           const where=v>=0?awayLabel(p,d):'';if(where)cls+=' awayc';
           const t=`${dLong(dy)}: ${v>=0?esc(typeName(v))+' '+range(v)+(where?' i '+esc(where):''):'ledig'}`;
-          h+=`<button class="${cls}"${v>=0?` style="${tStyle(m.sh.kind[v])}"`:''} data-p="${p}" data-d="${d}" title="${t}" aria-label="${esc(x.name)}, ${t}"></button>`;}
+          h+=`<button class="${cls}${v>=0?kcls(v):''}" data-p="${p}" data-d="${d}" title="${t}" aria-label="${esc(x.name)}, ${t}"></button>`;}
         h+='</div>';});
       const dev=s.mins-s.target;
       h+=`</div><span class="pstat"><span class="${s.hoursOk?'':'bad'}">${s.hoursOk?fmtDur(s.mins)+' h':(dev>0?'+':'')+fmtDur(dev)+' h'}</span></span></div>`;});
     h+=`<div class="addrow">${addButtons(G.id)}</div>`;
   });
-  return h+`<div style="padding:0 12px 12px">${legend()}</div></div>`;
+  return h+`<div style="padding:0 12px 12px">${legend('period')}</div></div>`;
 }
 
 /* ---------- popover för en dag ---------- */
@@ -1355,9 +1384,9 @@ function openPerson(p,keep){
   let cal='<div class="cal"><span></span>'+LETTERS.map(l=>`<span class="hd">${l}</span>`).join('');
   for(let w=0;w<m.WK;w++){cal+=`<span class="wn">V${w+1}</span>`;
     for(let d=w*7;d<w*7+7;d++){const i=p*m.N+d,v=m.row[p][d],dy=m.days[d];
-      let cls='cc'+(v>=0?' kc':dy.we?' we':'');if(A.flags[i]===2)cls+=' flag';
+      let cls='cc'+(v>=0?' sh'+kcls(v):dy.we?' we':'');if(A.flags[i]===2)cls+=' flag';
       const sv=v>=0?m.sh.V[v]:null,aw=v>=0?awayLabel(p,d):'';
-      cal+=`<button class="${cls}"${v>=0?` style="${tStyle(m.sh.kind[v])}"`:''} data-p="${p}" data-d="${d}" aria-label="${dLong(dy)}${aw?', i '+esc(aw):''}"><span class="t">${sv?fmtShort(sv.st):''}</span><span class="t">${sv?fmtShort(sv.en):''}</span>${aw?`<span class="t aw">${esc(aw)}</span>`:''}</button>`;}}
+      cal+=`<button class="${cls}" data-p="${p}" data-d="${d}" aria-label="${dLong(dy)}${sv?', '+range(v):', ledig'}${aw?', i '+esc(aw):''}">${sv?`<span class="t">${fmtShort(sv.st)}–</span><span class="t">${fmtShort(sv.en)}</span>`:''}${aw?`<span class="t aw">${esc(aw)}</span>`:''}${sv?tl(v):''}</button>`;}}
   cal+='</div>';
   const rec=[
     ['Pass i hemgruppen',s.n?`${s.n-s.away} av ${s.n}`:'–'],
@@ -1411,18 +1440,21 @@ function openDay(d,g,keep){
     const segs=[];for(let k=0;k<m.K;k++)segs.push({a:m.sh.TP[k],b:m.sh.TP[k+1],need:m.need[b+k],have:m.cnt[b+k]});
     const ws=[];for(let q=0;q<m.P;q++)if(m.row[q][d]>=0&&m.grp[q*m.N+d]===gi)ws.push(q);
     ws.sort((x,y)=>m.sh.st[m.row[x][d]]-m.sh.st[m.row[y][d]]||m.sh.en[m.row[x][d]]-m.sh.en[m.row[y][d]]);
-    const items=ws.map(q=>{const v=m.row[q][d],from=m.home[q]!==gi?`<span class="awaytag">från ${esc(m.G[m.home[q]].unit===G.unit?m.G[m.home[q]].name:gFull(m.home[q]))}</span>`:'';
-      return `<li><i class="dot kc" style="${tStyle(m.sh.kind[v])}"></i><button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${from}<span class="dtime">${range(v)}</span></li>`;}).join('');
+    // Tidsdiagram: en rad per person, med passet som en stapel på samma tidsaxel som bemanningen ovanför.
+    const f=t=>Math.max(0,Math.min(100,(t-d0)/(d1-d0)*100)),ticks=[];for(let t=Math.ceil(d0/60)*60;t<=d1;t+=d1-d0>600?120:60)ticks.push(t);
+    const rows=ws.map(q=>{const v=m.row[q][d],x=m.sh.V[v],inn=m.home[q]!==gi,from=inn?`<span class="awaytag" title="Lånad från ${esc(gFull(m.home[q]))}">${esc(m.G[m.home[q]].name)}</span>`:'';
+      return `<div class="grow"><span class="gn"><button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${from}</span><span class="gtrack"><span class="gbar${inn?' in':''}${kcls(v)}" style="left:${f(x.st).toFixed(2)}%;width:${(f(x.en)-f(x.st)).toFixed(2)}%" title="${esc(m.staff[q].name)} ${range(v)}">${range(v)}</span></span></div>`;}).join('');
+    const items=ws.length?`<div class="gantt"><div class="gticks">${ticks.map(t=>`<span style="left:${f(t).toFixed(2)}%"><b>${fmtShort(t)}</b></span>`).join('')}</div>
+      <div class="ghead"><span class="gl">Antal i tjänst</span>${covChart(segs,d0,d1,`Bemanning ${G.name}`,true)}</div>${rows}</div>`:'';
     const gaps=A.gaps.filter(x=>x.d===d&&x.g===gi).map(x=>`<span class="tag ${vik?'warn':'bad'}">${x.n} saknas ${fmtShort(x.from)}–${fmtShort(x.to)}</span>`).join('');
     const home=staffIdx(gi),out=home.filter(q=>{const gg=m.grp[q*m.N+d];return gg>=0&&gg!==gi;});
     const free=home.filter(q=>m.row[q][d]<0);
     const freeTxt=free.map(q=>{const notes=[];if(dy.we&&!m.wkWork[q*m.WK+dy.w])notes.push('ledig helg');
       return `<button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${notes.length?`<span class="muted small"> (${notes.join(', ')})</span>`:''}`;}).join(', ');
     return `<div class="dgroup"><div class="dgh"><h3>${esc(m.U[G.unit].name)} ${esc(G.name)}</h3><span class="${gapH?(vik?'warnt':'badt'):'okt'}">${gapH?`${fmtDur(gapH*60)} h under kurvan${vik?', till vikarie':''}`:`${ws.length} i tjänst, kurvan täcks`}</span></div>
-      ${covChart(segs,d0,d1,`Bemanning ${G.name}`)}
-      <p class="small muted">Linjen är bemanningskurvan, staplarna hur många som arbetar.</p>
       ${gaps?`<div class="dgaps">${gaps}</div>`:''}
-      ${items?`<ul class="dlist">${items}</ul>`:'<p class="small muted">Ingen arbetar här den här dagen.</p>'}
+      ${items||covChart(segs,d0,d1,`Bemanning ${G.name}`)+'<p class="small muted">Ingen arbetar här den här dagen.</p>'}
+      <p class="small muted">Överst: linjen är bemanningskurvan och staplarna hur många som arbetar. Under: varje persons pass under dagen.</p>
       ${out.length?`<p class="small"><b>Utlånade:</b> ${out.map(q=>`<button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button> till ${esc(gFull(m.grp[q*m.N+d]))}`).join(', ')}</p>`:''}
       <p class="small"><b>Lediga i ${esc(G.name)}:</b> ${freeTxt||'<span class="muted">ingen</span>'}</p></div>`;};
   const scopeG=g>=0?g:(prevG??0);
@@ -1435,14 +1467,14 @@ function openDay(d,g,keep){
 }
 /* Bemanningen som diagram. segs är intervall {a,b,need,have}: kurvan ritas som en trappa och, när have finns,
    hur många som arbetar som staplar, röda där kurvan inte täcks. Utan have fylls ytan under kurvan och talen skrivs ut. */
-function covChart(segs,d0,d1,label){
+function covChart(segs,d0,d1,label,inner){
   if(!segs.length||d1<=d0)return '';
-  const W=420,H=150,pl=22,pr=8,pt=18,pb=20,has=segs.some(s=>s.have!=null),mx=Math.max(2,...segs.map(s=>Math.max(s.need,s.have||0)));
+  const W=inner?320:420,H=inner?150:150,pl=inner?0:22,pr=inner?0:8,pt=inner?14:18,pb=inner?2:20,has=segs.some(s=>s.have!=null),mx=Math.max(2,...segs.map(s=>Math.max(s.need,s.have||0)));
   const x=t=>(pl+(t-d0)/(d1-d0)*(W-pl-pr)).toFixed(1),y=n=>(pt+(1-n/mx)*(H-pt-pb)).toFixed(1);
   let g='';
   const step=mx>12?4:mx>6?2:1;
-  for(let n=0;n<=mx;n+=step)g+=`<line x1="${pl}" x2="${W-pr}" y1="${y(n)}" y2="${y(n)}" class="cg"/><text x="${pl-6}" y="${(+y(n)+3.5).toFixed(1)}" class="cy">${n}</text>`;
-  for(let t=Math.ceil(d0/120)*120;t<=d1;t+=120)g+=`<text x="${x(t)}" y="${H-6}" class="cx">${fmtShort(t)}</text>`;
+  for(let n=0;n<=mx;n+=step)g+=`<line x1="${pl}" x2="${W-pr}" y1="${y(n)}" y2="${y(n)}" class="cg"/>`+(inner?(n?`<text x="2" y="${(+y(n)-2).toFixed(1)}" class="cy" style="text-anchor:start">${n}</text>`:''):`<text x="${pl-6}" y="${(+y(n)+3.5).toFixed(1)}" class="cy">${n}</text>`);
+  if(!inner)for(let t=Math.ceil(d0/120)*120;t<=d1;t+=120)g+=`<text x="${x(t)}" y="${H-6}" class="cx">${fmtShort(t)}</text>`;
   if(has)segs.forEach(s=>{if(!s.have)return;g+=`<rect x="${(+x(s.a)+.5).toFixed(1)}" y="${y(s.have)}" width="${Math.max(0,x(s.b)-x(s.a)-1).toFixed(1)}" height="${(y(0)-y(s.have)).toFixed(1)}" class="cb${s.have<s.need?' bad':''}"/>`;});
   let path='';segs.forEach((s,i)=>{path+=`${i?'L':'M'}${x(s.a)} ${y(s.need)}L${x(s.b)} ${y(s.need)}`;});
   if(!has)g+=`<path d="${path}L${x(segs[segs.length-1].b)} ${y(0)}L${x(segs[0].a)} ${y(0)}Z" class="ca"/>`;

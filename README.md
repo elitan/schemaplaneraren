@@ -27,12 +27,13 @@ Första gången visas en välkomstsida med tre val:
 
 Allt sker i en vy, schemat, som visas per grupp.
 
+1. **Schemat:** varje pass visas med sin tid och en stapel på arbetsdagens tidslinje, så att tidiga pass ligger till vänster och kvällspass till höger.
 1. **Personal:** under varje grupp finns "+ Lägg till person" och "Klistra in från Excel".
 2. **Klicka på ett namn** för att öppna personens sida.
    - Överst syns timmar, hela perioden, det som är värt att titta på och återhämtning.
    - Under, i en egen yta, ändras namn, tjänstgöringsgrad och hemgrupp. Helglag och kvällar fördelas av systemet, se Modellen.
    - Där sätts också begränsningar: tidigast start, senast slut och längsta pass. Tomt betyder ingen begränsning.
-3. **Klicka på en dag** för att se hur den är bemannad, för en grupp eller för alla. Ett diagram visar kurvan och hur många som arbetar, och var det saknas folk.
+3. **Klicka på en dag** för att se hur den är bemannad, för en grupp eller för alla. Överst visar ett diagram kurvan och hur många som arbetar, och under det ett tidsdiagram med varje persons pass som en stapel på samma tidsaxel. Det som saknas visas i rött.
 4. **Klicka på ett pass** för att ändra det.
    - Du kan välja start och slut, sätta ledigt eller flytta passet till en annan grupp.
    - Det du ändrar låses, och resten anpassas med så få flyttar som möjligt.
