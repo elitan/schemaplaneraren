@@ -108,7 +108,7 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
       await js('document.querySelector("#modeSeg [data-mode=vecka]").click()');});
     await step('Inställningar: bemanningskurvan visas, en tid läggs till och ångras',async()=>{
       await js('document.querySelector("#mainNav [data-tab=regler]").click()');
-      expect(await js('document.getElementById("tab-regler").innerText.includes("Bemanning")&&!!document.querySelector("#tab-regler .cchart")'),'kurvan visas inte');
+      expect(await js('document.getElementById("tab-regler").innerText.includes("Bemanning")&&!!document.querySelector("#tab-regler .cvchart svg")'),'kurvan visas inte');
       const n=await js('S.settings.curves[cvG][cvW].length');
       await js('document.getElementById("cvAdd").click()');
       expect(await js('S.settings.curves[cvG][cvW].length')===n+1,'tiden lades inte till');
@@ -116,6 +116,8 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
       expect(await js('S.settings.curves[cvG][cvW].length')===n,'ångra tog inte bort tiden');
       await js('{const i=document.querySelector("[data-cvn=\'1\']");i.value="5";i.dispatchEvent(new Event("change",{bubbles:true}))}');
       expect(await js('S.settings.curves[cvG][cvW][1][1]===5'),'antalet sparades inte');
+      await js('document.querySelector("[data-cvd=\'1:1\']").click()');
+      expect(await js('S.settings.curves[cvG][cvW][1][1]===6&&document.activeElement===document.querySelector("[data-cvd=\'1:1\']")'),'plusknappen ökade inte antalet');
       await js('document.querySelector("[data-cvw=weekend]").click()');
       expect(await js('cvW==="weekend"&&document.querySelector("[data-cvw=weekend]").getAttribute("aria-current")==="true"'),'helgkurvan visas inte');
       await js('document.querySelector("#mainNav [data-tab=schema]").click()');});

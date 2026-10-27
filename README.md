@@ -69,8 +69,10 @@ Längst ner kan man fälla ut hur varje regel följs.
   - Mellan avdelningar flyttar bara chefen, i dagmenyn.
 - **Helger:** alla arbetar varannan helg, udda eller jämna veckor, och båda dagarna. Systemet delar varje grupp i två lika stora helglag, så att alla arbetar lika många helger och helgerna bemannas lika. Den som har en låst ledig lördag eller söndag hamnar i laget som är ledigt den helgen.
 - **Kvällar:** ett pass som slutar efter 19 är ett kvällspass. Alla får lika stor andel kvällar som snittet i avdelningen. Det finns inga önskemål om dag eller kväll, eftersom de gör fördelningen ojämn och schemat svårare att lägga.
+- **Passens läge:** ett pass mitt på dagen, till exempel 08–17:30, tar hela dagen. Motorn lägger hellre passen så att de börjar när arbetsdagen börjar eller slutar när den slutar, så att personalen har förmiddagen eller kvällen fri.
+- **Ledighet:** alla får lika lång sammanhängande ledighet. Grundschemat räknas runt, så två lediga dagar i slutet av sista veckan och två i början av första blir fyra dagar i sträck. Lediga vardagar läggs helst ihop med den lediga helgen och helst före den, så långt bemanningen tillåter. Den som har låsta lediga dagar, till exempel semester, räknas inte in.
 - **Personliga begränsningar:** tidigast start, senast slut och längsta pass, för den som till exempel inte kan jobba kväll. De följs alltid, utom där chefen själv låst ett pass.
-- **Rättvisa:** personens sida och Excel-filen visar antal pass, kvällar och helgpass, och under Inställningar visas spannet för alla.
+- **Rättvisa:** personens sida visar antal pass, kvällar, helgpass och längsta ledighet i sträck, Excel-filen antal pass, kvällar och helgpass, och under Inställningar visas spannet för alla.
 - **Grundschemat** upprepas.
 
 ## Arbetstidslagen
@@ -98,8 +100,8 @@ Reglerna är namngivna funktioner (`lawDailyRest`, `lawWeeklyRest`, `hours`, `we
 2. **Bemanningskurvan,** per person och timme som saknas. Luckor på vardagar väger tyngre än på helger, som går till vikarie. Personal utöver kurvan kostar i kvadrat, så att den sprids jämnt över dagarna, och mer efter 15.
 3. **Exakta timmar.**
 4. **Helgrytmen.**
-5. **Återhämtning:** arbetsdagar i rad och per vecka, ledighet i block, vila runt ledigheten och jämna veckor.
-6. **Rättvisa och övrigt:** lika andel kvällar för alla (målet följer avdelningens faktiska snitt under sökningen), och hemgruppen.
+5. **Återhämtning:** arbetsdagar i rad och per vecka, ledighet i block och helst kring den lediga helgen, vila runt ledigheten och jämna veckor.
+6. **Rättvisa och övrigt:** lika andel kvällar för alla och lika lång längsta ledighet i sträck (båda målen följer det faktiska snittet under sökningen), och hemgruppen.
 
 "Lägg om schemat" söker i upp till 30 sekunder. Ändringar av enskilda pass tar cirka 2 sekunder. Sökningen körs i webbläsaren i små steg, så att sidan inte fryser.
 
@@ -146,6 +148,8 @@ Hårda regler kontrolleras med en egen, oberoende räkning:
 - högst två timmars lucka i kurvan på vardagar (appen söker fem gånger längre än testet och brukar inte ha någon)
 - alla har lika många helgpass, högst ett skiljer
 - kvällsandelen skiljer högst 20 procentenheter mellan personer
+- längsta ledigheten i sträck skiljer högst två dagar mellan personer
+- högst 5 % av passen ligger mer än en timme från arbetsdagens början och slut
 - vid samma tid i samma grupp skiljer det högst 4 personer mellan två vardagar (appen brukar hamna på 2–3)
 - högst en period med 7 dagar i rad (appen brukar inte ha någon)
 - högst 12 helgtimmar till vikarie

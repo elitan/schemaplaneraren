@@ -111,6 +111,9 @@ function metrics(S,A){
   const M=E.M,P=M.P,N=M.N;
   // rättvisa: helgpass och kvällsandel, minsta och största per person bland dem som har pass
   const act=A.persons.filter(x=>x.n),weN=act.map(x=>x.we),evS=act.map(x=>x.ev/x.n);
+  // längsta ledighet i sträck, räknad runt grundschemat, för dem utan låsta lediga dagar
+  const offS=[];for(let p=0;p<P;p++){const row=M.row[p];if(!M.offOn[p]||!row.some(v=>v>=0))continue;
+    let f=0;while(row[f]<0)f++;let best=0,run=0;for(let k=1;k<=N;k++){if(row[(f+k)%N]<0)best=Math.max(best,++run);else run=0;}offS.push(best);}
   const devs=A.persons.map(x=>Math.abs(x.mins-x.target));
   // Vila runt ledigheten, räknad direkt ur schemat.
   let edges=0,edgeMin=0,early=0,late=0;
@@ -139,6 +142,8 @@ function metrics(S,A){
     helgpass:weN.length?`${Math.min(...weN)}–${Math.max(...weN)}`:'–', helgSpridning:weN.length?Math.max(...weN)-Math.min(...weN):0,
     kvallsandel:evS.length?`${Math.round(Math.min(...evS)*100)}–${Math.round(Math.max(...evS)*100)} %`:'–',
     kvallSpridning:evS.length?Math.round((Math.max(...evS)-Math.min(...evS))*100):0, dagSpridning:A.daySpread,
+    mittpassPct:(()=>{let a=0,b=0;for(let p=0;p<P;p++)for(let d=0;d<N;d++){const v=M.row[p][d];if(v<0)continue;a++;if(M.sh.mid[v]>60)b++;}return a?Math.round(b/a*1000)/10:0;})(),
+    ledigISträck:offS.length?`${Math.min(...offS)}–${Math.max(...offS)}`:'–', ledigSpridning:offS.length?Math.max(...offS)-Math.min(...offS):0,
     utanforHemgrupp:A.totN?Math.round(A.totAway/A.totN*1000)/10:0,
     sexdagarsveckor:six, perioder6:runs6, perioder7:runs7,
     helgVilaH:wkN?Math.round(wkMin/wkN/6)/10:null,
@@ -182,7 +187,7 @@ function randomConfig(seed){
 const SCEN=[
   // gate: kvalitetsgränser som varje körning måste klara (gäller inte snabbläget, som kör färre iterationer)
   {name:'Standard (demodata, 4 grupper × 14, alla heltid)',make:()=>base(),
-    gate:{timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:2,perioder7:1,vikarieHelgH:12,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20,dagSpridning:4}},  // appen söker fem gånger längre
+    gate:{timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:2,perioder7:1,vikarieHelgH:12,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20,dagSpridning:4,ledigSpridning:2,mittpassPct:5}},  // appen söker fem gånger längre
   {name:'Blandade tjänstgöringsgrader',make:()=>setAll(base(),(x,i)=>x.pct=[100,100,90,90,85,85,80,80,75,75,75,75,65,50][i%14]),gate:{timmarMiss:1,maxAvvikelseMin:30}},
   {name:'Mest deltid (50–60 %)',make:()=>setAll(base(),(x,i)=>x.pct=i%2?50:60)},
   {name:'Underbemannat: 10 per grupp',make:()=>{const S=base();groupsOf(S).forEach(g=>makeGroup(S,g,Array(10).fill(100)));return S;}},
@@ -236,7 +241,7 @@ const results=[];let hardFail=0,gateFail=0;
 // Kvalitetsgränser: returnerar en lista med det som inte nåddes
 function checkGate(g,met){if(!g||QUICK)return [];const bad=[];
   if(g.timmarMiss!==undefined&&met.personal-met.timmarOk>g.timmarMiss)bad.push(`${met.personal-met.timmarOk} får inte exakt sina timmar (högst ${g.timmarMiss})`);
-  ['maxAvvikelseMin','luckaVardagH','perioder7','vikarieHelgH','utanforHemgrupp','helgSpridning','kvallSpridning','dagSpridning'].forEach(k=>{if(g[k]!==undefined&&met[k]>g[k])bad.push(`${k} ${met[k]} (högst ${g[k]})`);});
+  ['maxAvvikelseMin','luckaVardagH','perioder7','vikarieHelgH','utanforHemgrupp','helgSpridning','kvallSpridning','dagSpridning','ledigSpridning','mittpassPct'].forEach(k=>{if(g[k]!==undefined&&met[k]>g[k])bad.push(`${k} ${met[k]} (högst ${g[k]})`);});
   return bad;}
 const pad=(s,n)=>String(s).padEnd(n).slice(0,n);
 console.log(`Schemamotorn · ${SCEN.length} scenarier · frön ${SEEDS.join(', ')} · ${QUICK?'snabbläge':'full körning'}\n`);
