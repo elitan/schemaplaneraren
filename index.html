@@ -188,7 +188,6 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .cell small{font-size:10px;font-weight:500;opacity:.8}
 .cell.kc{background:var(--c);color:var(--on)}
 .cell small.away{font-weight:600;opacity:.9}
-.cell.wish{box-shadow:inset 0 0 0 1.5px var(--warn)}
 .cell.lockd::before{content:"";position:absolute;top:4px;right:5px;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.55}
 .cell.flag{box-shadow:inset 0 0 0 2px var(--bad)}
 .cell.moved{box-shadow:0 0 0 2px var(--accent)}
@@ -227,7 +226,6 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .c.free{background:var(--surface-3)}
 .c.free.we{background:var(--line-2)}
 .c:hover{outline:2px solid var(--ink);outline-offset:1px}
-.c.wish{box-shadow:inset 0 0 0 1.5px var(--warn)}
 .c.flag{box-shadow:0 0 0 2px var(--bad)}
 .c.moved{box-shadow:0 0 0 2px var(--accent)}
 .pstat{text-align:right;font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
@@ -262,6 +260,28 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .frow input.time{width:64px;text-align:center}
 .frow .times{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
 .stgrid{display:grid;grid-template-columns:1fr repeat(5,50px);gap:6px;align-items:center;padding:8px 12px;font-size:13px}
+.cchart{width:100%;height:auto;display:block;overflow:visible}
+.cchart .cg{stroke:var(--line);stroke-width:1}
+.cchart .cx,.cchart .cy{font-size:10px;fill:var(--faint);text-anchor:middle}
+.cchart .cy{text-anchor:end}
+.cchart .ca{fill:var(--accent-tint)}
+.cchart .cl{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+.cchart .cb{fill:var(--ok-tint);stroke:#a9d6b1;stroke-width:1}
+.cchart .cb.bad{fill:var(--bad-tint);stroke:var(--bad)}
+.cchart .cn{font-size:12px;font-weight:650;fill:var(--accent);text-anchor:middle}
+.cvlist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px}
+.cvrow{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:13px;flex-wrap:wrap}
+.cvrow+.cvrow{border-top:1px solid var(--line)}
+.cvrow input{width:58px;border:0;background:var(--surface-2);border-radius:6px;padding:5px 4px;text-align:center;font-variant-numeric:tabular-nums}
+.cvrow input.cnum{width:44px}
+.cvrow .cvto{margin-left:auto;font-variant-numeric:tabular-nums}
+.cvrow button{color:var(--muted);display:grid;place-items:center;width:24px;height:24px;border-radius:6px;flex:none}
+.cvrow button:hover{background:var(--surface-3);color:var(--bad)}
+.subnav.sm button{height:30px;font-size:13px}
+.ptime{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ptime select{height:30px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface);padding:0 6px;font-variant-numeric:tabular-nums}
+.ptime .btn{height:30px}
+.dgaps{display:flex;flex-wrap:wrap;gap:6px}
 .stgrid+.stgrid{border-top:1px solid var(--line)}
 .stgrid .hd{font-size:11px;color:var(--muted);text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
 .stgrid .hd span{font-size:9.5px;white-space:nowrap;line-height:1.1}
@@ -339,7 +359,6 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .cc:hover{outline:2px solid var(--ink);outline-offset:-1px}
 .cc .t{font-size:10.5px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
 .cc.we{background:var(--surface-3)}
-.cc.wish{box-shadow:inset 0 0 0 1.5px var(--warn)}
 .cc.flag{box-shadow:inset 0 0 0 2px var(--bad)}
 .cc.kc{background:var(--c);color:var(--on)}
 .cc .t.aw{font-size:9.5px;font-weight:500;opacity:.85}
@@ -414,65 +433,79 @@ textarea.paste{width:100%;min-height:160px;border:1px solid var(--line-2);border
 
 <script id="engine">
 /* ================= Motor: modell, poäng och optimering =================
-   Allt om verksamheten kommer från inställningarna: avdelningar med grupper, egna passtyper
-   med tillåtna tider, bemanning per grupp och personliga begränsningar. Grundschemat är
-   cykliskt: sista dagen följs av första. Arbetstidslagen är inbyggd och väger tyngst: hellre ett
-   tomt pass än brott mot vilan. Personalen jobbar i sin hemgrupp och lånas till en annan grupp i
-   avdelningen bara när bemanningen kräver det. Mellan avdelningar flyttar bara chefen själv. */
+   Verksamheten anger en arbetsdag, till exempel 06:45–21:30, och för varje grupp en bemanningskurva för vardag och
+   helg: från ett klockslag ska minst så många arbeta, fram till nästa klockslag. Det finns inga passtyper. Motorn
+   väljer varje persons pass, start och slut inom arbetsdagen, så att kurvan täcks, alla får exakt sina timmar för
+   varje fyraveckorsperiod och arbetstidslagen följs. Grundschemat är cykliskt: sista dagen följs av första.
+   Personalen jobbar i sin hemgrupp och lånas till en annan grupp i avdelningen bara när bemanningen kräver det.
+   Mellan avdelningar flyttar bara chefen själv. */
 const DOW=['mån','tis','ons','tor','fre','lör','sön'];
 const DOWL=['Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag','Söndag'];
-const PALETTE=['#f1a238','#f8dcae','#cfe1f3','#3b5b8c','#86cfa4','#e9b7c9','#b9b2e3','#c8cdc9','#7fb7e6','#d97757'];
-const BREAK_AFTER=5*60;   // arbetstidslagen 15 §: rast senast efter fem timmars arbete, så kortare pass har ingen rast
-const MAX_SPAN=16*60;     // längsta pass, även nattpass
+// Arbetstidslagen: dygnsvila 11 timmar (13 §) och veckovila 36 timmar (14 §). Går inte att ändra.
+const DAILY_REST=11,WEEKLY_REST=36;
+const MAX_SHIFT=12*60;   // längsta pass
+// Rast: pass över fem timmar har 30 minuter (arbetstidslagen 15 §), pass över tio timmar en timme.
+function breakFor(gross){return gross>600?60:gross>300?30:0;}
+const BLOCK_WEEKS=4;     // timmarna ska stämma för varje fyraveckorsperiod, till exempel 37 × 4 = 148 h för heltid
+const WEEK_OPTIONS=[4,8];
 // Färger för verksamhetens profil. Den första är standard.
 const ACCENTS=[['#2f5d8a','Blå'],['#2e7a5a','Grön'],['#6b4c9a','Lila'],['#a5512c','Rost'],['#3f4a56','Grafit']];
-// Regler som verksamheten ställer in. Standardvärdena följer arbetstidslagen och vanlig praxis.
-const RULES={dailyRest:11,weeklyRest:36,night:false,wkEvery:2,maxRow:5,maxWeekDays:5,maxWeekPct:20,lend:'behov',fillWeekend:false,balance:'balans'};
-const LAW_DAILY=11,LAW_WEEKLY=36;
-const EVERY={2:'varannan',3:'var tredje',4:'var fjärde'};
-const WG='ABCD';   // helglag: lag A arbetar helgen i vecka 1, lag B i vecka 2 och så vidare
-// Grundschemats längd måste gå jämnt upp med helgrytmen, annars stämmer inte rytmen när schemat börjar om.
-function weekOptions(E){return {2:[4,6,8,10,12],3:[3,6,9,12],4:[4,8,12]}[E]||[4,6,8];}
-function wgIndex(x,E){const i=WG.indexOf(x&&x.wg);return i<0?0:i%E;}
-/* Vikter i prioritetsordning. Ju högre nivå, desto tyngre väger en avvikelse. Siffrorna är straffpoäng och
-   har prövats fram med tests/sweep.js mot testscenarierna. */
+const RULES={maxRow:5,maxWeekDays:6,lend:'behov'};
+const LEND_LABEL={aldrig:'Aldrig',behov:'Vid behov',fritt:'Fritt'};
+// Passen färgas efter när de slutar: dag före 16, mellan före 19, kväll senare. Kvällarna fördelas rättvist.
+const KINDS=[{name:'Dag',color:'#f1a238',hint:'slutar senast 16'},{name:'Mellan',color:'#f8dcae',hint:'slutar senast 19'},{name:'Kväll',color:'#8fb3de',hint:'slutar efter 19'}];
+function kindOf(st,en){return en<=16*60?0:en<=19*60?1:2;}
+const WG='AB';   // helglag: lag A arbetar helgen i udda veckor, lag B i jämna. Alla arbetar varannan helg.
+function wgIndex(x){return x&&x.wg==='B'?1:0;}
+/* Helglagen fördelas av systemet, inte av chefen: hälften av varje grupp arbetar udda veckors helger och hälften
+   jämna, så att alla arbetar lika många helger och helgerna bemannas lika. Den som har en låst ledig lördag eller
+   söndag hamnar i laget som är ledigt den helgen, och den som har ett låst helgpass i laget som arbetar då. Övriga
+   behåller sitt lag så länge lagen är lika stora, så att schemat inte ändras i onödan. */
+function balanceTeams(staff,locks,weeks){
+  const byG={};staff.forEach(x=>(byG[x.group]=byG[x.group]||[]).push(x));
+  Object.values(byG).forEach(list=>{const fixed=new Set();
+    list.forEach(x=>{const L=locks[x.id]||{};let k=-1;
+      Object.keys(L).forEach(d=>{d=+d;if(d>=weeks*7||d%7<5)return;const w=(d/7)|0;k=L[d]==='-'?1-w%2:w%2;});
+      if(k>=0){x.wg=WG[k];fixed.add(x);}});
+    for(let guard=0;guard<list.length;guard++){const c=[0,1].map(k=>list.filter(x=>wgIndex(x)===k).length),big=c[0]>c[1]?0:1;
+      if(Math.abs(c[0]-c[1])<=1)break;
+      // den som lades till sist flyttas, så att de som redan har ett lag får behålla det
+      const mv=[...list].reverse().find(x=>wgIndex(x)===big&&!fixed.has(x));if(!mv)break;mv.wg=WG[1-big];}});
+}
+// Bemanningskurva att börja med: [från klockan, minst antal]. Gäller till nästa tid.
+const DEFAULT_CURVE={weekday:[['06:45',2],['07:00',4],['12:00',6],['14:00',4],['21:00',2]],
+  weekend:[['06:45',2],['07:00',3],['12:00',4],['14:00',3],['21:00',2]]};
+/* Vikter i prioritetsordning. Ju högre nivå, desto tyngre väger en avvikelse. Siffrorna är straffpoäng. */
 const W={
-  // 1. Arbetstidslagen väger tyngst med bred marginal: ett brott ska alltid kosta mer än både ett tomt pass och de
-  //    timmar passet ger (ett pass är cirka 7,5 h × 400 + 1 500), så att motorn aldrig byter vila mot bemanning eller timmar.
-  //    Under huvudsökningen kostar ett brott mindre (lawSearch), så att sökningen kan passera genom ett brott och
-  //    reparera det. Före slutfasen gäller full vikt (strictLaw), så inget brott finns kvar i det färdiga schemat.
+  // 1. Arbetstidslagen väger tyngst med bred marginal. Under huvudsökningen kostar ett brott mindre (lawSearch), så att
+  //    sökningen kan passera genom ett brott och reparera det. Före slutfasen gäller full vikt (strictLaw).
   rest:20000,weekRest:20000,lawSearch:2500,
-  // 2. Bemanning: ett tomt vardagspass och ett tomt helgpass (tomma helgpass går till vikarie).
-  holeWd:1500,holeWe:600,
-  // 3. Exakta timmar, per timme fel. Mer än ungefär ett extra pass i övertid per period blir dyrare än ett tomt pass.
+  // 2. Bemanning: per person och timme som kurvan inte täcks. Helgtimmar som saknas går till vikarie och väger lättare.
+  shortWd:220,shortWe:90,
+  //    Personal utöver kurvan kostar lite, i kvadrat så att den sprids. Efter 15 kostar den dubbelt, så att extra
+  //    personal hamnar på dagen.
+  surplus:3,surplusLate:2,
+  // 3. Exakta timmar, per timme fel och fyraveckorsperiod. Mer än ett pass övertid blir dyrare än en lucka i kurvan.
   hUnder:400,hOver:120,otTol:480,hOverHard:500,
   // 4. Helger: en arbetshelg utan pass, ett pass under en ledig helg, olika slags pass lördag och söndag.
   wkMiss:600,wkWrong:600,wkMix:6,
-  // 5. Återhämtning: sexdagarsveckor, långa arbetsperioder, ensamma lediga dagar, vila runt ledigheten, jämna veckor.
-  sixWeek:150,sixSoft:15,sixRoll:30,longRun:160,run7:800,singleOff:150,block:10,isolated:8,switch:3,edge:4,edgeWk:16,weekVar:.3,weekOver:25,
-  // 6. Övrigt: hemgruppen, rättvis fördelning av passtyper och kvällar, önskad ledighet, få pass och få flyttar vid ändring.
-  away:50,fair:2,fairType:1.5,prefShift:.3,wish:100,shift:10,stab:12};
-// Den enda verkliga avvägningen i motorn. Personalens timmar och antalet pass är fasta, så färre arbetsdagar för
-// heltidare betyder att timmarna räcker till färre pass, och det som blir tomt är helgpass.
-const BALANCE={vikarie:{wkMiss:1500,sixWeek:80},balans:{},sexdagar:{wkMiss:250,sixWeek:300,sixRoll:60}};
-const BALANCE_LABEL={vikarie:'Färre vikariepass',balans:'Balanserat',sexdagar:'Färre långa veckor'};
-const LEND_LABEL={aldrig:'Aldrig',behov:'Vid behov',fritt:'Fritt'};
+  // 5. Återhämtning: långa veckor, långa arbetsperioder, ensamma lediga dagar, vila runt ledigheten, jämna veckor.
+  sixWeek:150,sixSoft:15,sixRoll:30,longRun:160,run7:800,singleOff:150,block:10,isolated:8,switch:3,edge:4,edgeWk:16,weekVar:.3,weekOver:25,maxWeekPct:20,
+  // 6. Övrigt: hemgruppen, rättvis fördelning av kvällar (fair, per kvällspass i kvadrat från snittet), få pass och få flyttar vid ändring.
+  away:200,fair:60,shift:10,stab:12};
 
 function pad(n){return String(n).padStart(2,'0')}
 function hm(s){const a=String(s||'0:0').split(':').map(Number);return (a[0]||0)*60+(a[1]||0)}
-// Klockslag. Ett nattpass slutar efter midnatt och har sluttid över 24:00, som visas som tiden nästa dag.
-function clock(m){return m>1440?m-1440:m}
-function fmtHM(m){m=clock(m);return pad(Math.floor(m/60))+':'+pad(m%60)}
-function fmtShort(m){m=clock(m);return pad(Math.floor(m/60))+(m%60?':'+pad(m%60):'')}
-// Passets längd i minuter. Slutar passet före eller när det börjar går det över midnatt.
-function spanMin(a,b){const s=hm(a),e=hm(b);return e>s?e-s:e+1440-s;}
-// Är tiderna tillåtna? Utan nattpass ska passet ligga mellan 05 och 24. Med nattpass får det gå över midnatt.
-function okVariant(a,b,night){const s=hm(a),e=hm(b);if(!night)return e>s&&s>=300;return spanMin(a,b)<=MAX_SPAN;}
+function fmtHM(m){return pad(Math.floor(m/60))+':'+pad(m%60)}
+function fmtShort(m){return pad(Math.floor(m/60))+(m%60?':'+pad(m%60):'')}
 function fmtDur(m){m=Math.round(m);const s=m<0?'−':'';m=Math.abs(m);return s+Math.floor(m/60)+(m%60?':'+pad(m%60):'')}
 function h1(min){return (min/60).toFixed(1).replace('.',',')}
 function fmtH(h){return String(h).replace('.',',')}
-// Pass sparas som "typ.variant@grupp", till exempel "t1.0@g2". Gruppen kan saknas i äldre låsningar.
-function parseCode(c){const m=/^([a-z][a-z0-9]{0,15})\.(\d{1,2})(?:@([a-z][a-z0-9]{0,15}))?$/.exec(String(c||''));return m?{t:m[1],i:+m[2],g:m[3]||null,k:m[1]+'.'+m[2]}:null;}
+// Ett pass sparas som "0645-1530@g1": start, slut och grupp. Gruppen kan saknas i äldre låsningar.
+function codeOf(st,en){return pad(Math.floor(st/60))+pad(st%60)+'-'+pad(Math.floor(en/60))+pad(en%60);}
+function parseCode(c){const m=/^(\d{2})(\d{2})-(\d{2})(\d{2})(?:@([a-z][a-z0-9]{0,15}))?$/.exec(String(c||''));if(!m)return null;
+  const st=+m[1]*60+ +m[2],en=+m[3]*60+ +m[4];if(+m[2]>59||+m[4]>59||en>1440||en<=st||en-st>MAX_SHIFT)return null;
+  return {st,en,g:m[5]||null,k:codeOf(st,en)};}
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 // Tål "75%", "37,5", " 80 " och liknande från inmatning eller Excel.
 function num(v,def){if(typeof v==='number'&&isFinite(v))return v;const s=String(v??'').replace(/[%\s ]/g,'').replace(',','.');const n=parseFloat(s);return isFinite(n)?n:def;}
@@ -484,45 +517,37 @@ function parseTime(v){const s=String(v??'').trim().replace(/[.,]/g,':');let m=s.
 function onColor(hex){const n=parseInt(String(hex).slice(1),16);if(!isFinite(n))return '#071013';const r=n>>16&255,g=n>>8&255,b=n&255;
   return (0.299*r+0.587*g+0.114*b)>150?'#071013':'#ffffff';}
 const cleanId=v=>String(v??'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,16);
-
-// Passtyper att börja med. Tiderna ändras under Inställningar.
-const TEMPLATES={
-  standard:{label:'Tidig, dag, kväll och sen',types:[
-    {id:'t1',name:'Tidig',color:'#f1a238',eve:false,variants:[['06:45','14:00'],['06:45','14:30'],['06:45','15:00']]},
-    {id:'t2',name:'Dag',color:'#f8dcae',eve:false,variants:[['07:00','14:00'],['07:00','15:00']]},
-    {id:'t3',name:'Kväll',color:'#cfe1f3',eve:true,variants:[['13:00','21:00'],['14:00','21:00'],['15:00','21:00']]},
-    {id:'t4',name:'Sen',color:'#3b5b8c',eve:true,variants:[['13:15','21:30'],['14:00','21:30'],['15:00','21:30']]}],
-    demand:{weekday:{t1:2,t2:2,t3:2,t4:2},weekend:{t1:2,t2:2,t3:2,t4:2}},night:false},
-  natt:{label:'Dag, kväll och natt',types:[
-    {id:'t1',name:'Dag',color:'#f1a238',eve:false,variants:[['07:00','15:00'],['07:00','15:30'],['07:00','16:00']]},
-    {id:'t2',name:'Kväll',color:'#cfe1f3',eve:true,variants:[['14:00','21:30'],['14:30','21:30'],['15:00','21:45']]},
-    {id:'t3',name:'Natt',color:'#3b5b8c',eve:true,variants:[['21:15','07:15'],['21:30','07:15']]}],
-    demand:{weekday:{t1:4,t2:3,t3:1},weekend:{t1:3,t2:3,t3:1}},night:true}};
 const cp=o=>JSON.parse(JSON.stringify(o));
-// Ett tomt upplägg: verksamhetens namn, avdelningar med grupper och en mall för passtyperna. Ingen personal.
-function blank(orgName,units,template){
-  const tp=TEMPLATES[template]||TEMPLATES.standard,demand={};
-  units.forEach(u=>u.groups.forEach(g=>demand[g.id]=cp(tp.demand)));
-  return {v:7,example:false,stale:false,savedAt:null,
-    settings:{orgName:orgName||'',accent:ACCENTS[0][0],weeks:6,fullTime:37,breakMin:30,units:cp(units),types:cp(tp.types),demand,
-      rules:Object.assign({},RULES,{night:tp.night}),iterations:3000000},
-    staff:[],wishes:{},locks:{},schedule:null};
+// Antal som kurvan kräver vid en tidpunkt: värdet från den senaste tiden som inte är senare.
+function curveAt(curve,m){let n=0;for(const [t,c] of curve){if(hm(t)<=m)n=c;else break;}return n;}
+
+// Ett tomt upplägg: verksamhetens namn och avdelningar med grupper. Ingen personal.
+function blank(orgName,units){
+  const curves={};units.forEach(u=>u.groups.forEach(g=>curves[g.id]=cp(DEFAULT_CURVE)));
+  return {v:8,example:false,stale:false,savedAt:null,
+    settings:{orgName:orgName||'',accent:ACCENTS[0][0],weeks:4,fullTime:37,day:{start:'06:45',end:'21:30'},shift:{min:360,max:570},
+      units:cp(units),curves,rules:Object.assign({},RULES),iterations:3000000},
+    staff:[],locks:{},schedule:null};
 }
-// Demodata: två avdelningar med två grupper var och 14 påhittade personer per grupp.
+// Demodata: två avdelningar med två grupper var och 14 påhittade personer per grupp, alla på heltid.
+// Avdelning 2 är demensboende med fem på förmiddagen.
 function defaults(){
   const names=[
     ['Anna L','Bertil K','Cecilia M','David S','Elin J','Fatima A','Gustav N','Hanna P','Ida R','Jamal H','Karin Ö','Lena B','Maria T','Nils W'],
     ['Olle G','Petra H','Qasim R','Rut A','Sven E','Tove L','Ulf N','Vanja K','William F','Yasmin D','Zara B','Åke M','Ängla S','Örjan P'],
     ['Rosa C','Sara D','Tomas F','Ulla I','Vera Q','Yusuf Z','Åsa V','Amir M','Britt L','Camilla S','Dragan P','Emma K','Filip R','Greta N'],
     ['Hampus T','Irma J','Jonas W','Klara E','Leo H','Mira A','Noah B','Oskar L','Pia N','Roger S','Selma K','Tilda R','Ture M','Vilma O']];
-  const pcts=[Array(14).fill(100),Array(14).fill(100)];
   const groups=['g1','g2','g3','g4'],staff=[];let n=0;
-  names.forEach((list,gi)=>list.forEach((nm,i)=>{n++;staff.push({id:'s'+n,name:nm,pct:pcts[gi<2?0:1][i],group:groups[gi],wg:i%2?'B':'A',
-    pref:{3:'dag',8:'kvall'}[i]||'',types:null,earliest:null,latest:null,maxLen:null,groups:null});}));
-  const S=blank('',[{id:'u1',name:'Avdelning 1',groups:[{id:'g1',name:'Grupp A'},{id:'g2',name:'Grupp B'}]},{id:'u2',name:'Avdelning 2',groups:[{id:'g3',name:'Grupp C'},{id:'g4',name:'Grupp D'}]}],'standard');
-  S.settings.demand.g1.weekday.t2=3;S.settings.demand.g2.weekday.t2=3;
-  return Object.assign(S,{example:true,staff,wishes:{s5:{'4':'L'},s10:{'16':'L','17':'L'},s31:{'22':'L'},s47:{'25':'L'}}});
+  names.forEach((list,gi)=>list.forEach((nm,i)=>{n++;staff.push({id:'s'+n,name:nm,pct:100,group:groups[gi],wg:i%2?'B':'A',earliest:null,latest:null,maxLen:null});}));
+  const S=blank('',[{id:'u1',name:'Omvårdnad',groups:[{id:'g1',name:'Grupp A'},{id:'g2',name:'Grupp B'}]},{id:'u2',name:'Demens',groups:[{id:'g3',name:'Grupp C'},{id:'g4',name:'Grupp D'}]}]);
+  ['g3','g4'].forEach(g=>S.settings.curves[g].weekday=[['06:45',2],['07:00',5],['12:00',6],['14:00',4],['21:00',2]]);
+  return Object.assign(S,{example:true,staff});
 }
+// Kurvans punkter: giltiga tider inom arbetsdagen, sorterade, högst en per tid och 0–30 personer.
+function cleanCurve(src,d0,d1){
+  const pts=new Map();(Array.isArray(src)?src:[]).slice(0,48).forEach(x=>{const t=parseTime(Array.isArray(x)?x[0]:x&&x.t),c=Math.round(num(Array.isArray(x)?x[1]:x&&x.n,NaN));
+    if(!t||!isFinite(c))return;const m=hm(t);if(m<d0||m>=d1)return;pts.set(m,Math.max(0,Math.min(30,c)));});
+  return [...pts.entries()].sort((a,b)=>a[0]-b[0]).map(([m,c])=>[fmtHM(m),c]);}
 
 /* Gör sparad eller importerad data säker att räkna på. Ogiltiga värden ersätts med standard. */
 function normalize(S){
@@ -531,56 +556,48 @@ function normalize(S){
   const st=S.settings&&typeof S.settings==='object'?S.settings:{},d=D.settings,o={};
   const r=st.rules&&typeof st.rules==='object'?st.rules:{};
   const rn=(v,lo,hi,def,step)=>{const x=num(v,def);return isFinite(x)?Math.max(lo,Math.min(hi,Math.round(x/step)*step)):def;};
-  o.rules={dailyRest:rn(r.dailyRest,8,13,RULES.dailyRest,.5),weeklyRest:rn(r.weeklyRest,24,60,RULES.weeklyRest,1),night:!!r.night,
-    wkEvery:[2,3,4].includes(+r.wkEvery)?+r.wkEvery:2,maxRow:rn(r.maxRow,3,7,RULES.maxRow,1),maxWeekDays:rn(r.maxWeekDays,4,7,RULES.maxWeekDays,1),
-    maxWeekPct:rn(r.maxWeekPct,5,100,RULES.maxWeekPct,1),lend:LEND_LABEL[r.lend]?r.lend:'behov',fillWeekend:!!r.fillWeekend,balance:BALANCE[r.balance]?r.balance:'balans'};
-  const wo=weekOptions(o.rules.wkEvery),wk=Math.round(num(st.weeks,6));o.weeks=wo.includes(wk)?wk:(wo.find(x=>x>=wk)||wo[wo.length-1]);
-  o.fullTime=Math.min(45,Math.max(20,Math.round(num(st.fullTime,37)*4)/4));
-  o.breakMin=Math.max(0,Math.min(60,Math.round(num(st.breakMin,d.breakMin))));o.iterations=d.iterations;
+  o.rules={maxRow:rn(r.maxRow,3,7,RULES.maxRow,1),maxWeekDays:rn(r.maxWeekDays,4,7,RULES.maxWeekDays,1),lend:LEND_LABEL[r.lend]?r.lend:'behov'};
+  const wk=Math.round(num(st.weeks,4));o.weeks=WEEK_OPTIONS.includes(wk)?wk:wk>4?8:4;
+  o.fullTime=Math.min(45,Math.max(20,Math.round(num(st.fullTime,37)*4)/4));o.iterations=d.iterations;
   o.orgName=String(st.orgName??'').replace(/\s+/g,' ').trim().slice(0,60);
   o.accent=/^#[0-9a-f]{6}$/i.test(st.accent)?st.accent.toLowerCase():ACCENTS[0][0];
+  // arbetsdagen: mellan 05 och 24 och minst tre timmar
+  const day=st.day&&typeof st.day==='object'?st.day:{};let a=parseTime(day.start),b=parseTime(day.end);
+  if(!a||!b||a==='24:00'||hm(a)<300||hm(b)-hm(a)<180){a=d.day.start;b=d.day.end;}
+  o.day={start:a,end:b};const d0=hm(a),d1=hm(b);
+  // passens längd med rast, i kvartar, högst tolv timmar och högst hela arbetsdagen
+  const sh=st.shift&&typeof st.shift==='object'?st.shift:{};
+  const mx=Math.max(120,Math.min(MAX_SHIFT,d1-d0,Math.round(num(sh.max,d.shift.max)/15)*15)),mn=Math.max(120,Math.min(mx,Math.round(num(sh.min,d.shift.min)/15)*15));
+  o.shift={min:mn,max:mx};
   // avdelningar och grupper
   const ids=new Set(),uid=(v,pre)=>{let id=cleanId(v);if(!/^[a-z]/.test(id))id='';if(!id||ids.has(id)){let i=1;while(ids.has(pre+i))i++;id=pre+i;}ids.add(id);return id;};
   const units=(Array.isArray(st.units)?st.units:[]).filter(u=>u&&typeof u==='object').slice(0,8).map(u=>({id:uid(u.id,'u'),name:String(u.name??'').replace(/\s+/g,' ').trim().slice(0,30)||'Avdelning',
-    groups:(Array.isArray(u.groups)?u.groups:[]).filter(g=>g&&typeof g==='object').slice(0,8).map(g=>({id:uid(g.id,'g'),name:String(g.name??'').replace(/\s+/g,' ').trim().slice(0,12)||'Grupp'}))})).filter(u=>u.groups.length);
-  o.units=units.length?units:JSON.parse(JSON.stringify(d.units));
+    groups:(Array.isArray(u.groups)?u.groups:[]).filter(g=>g&&typeof g==='object').slice(0,8).map(g=>({id:uid(g.id,'g'),name:String(g.name??'').replace(/\s+/g,' ').trim().slice(0,20)||'Grupp'}))})).filter(u=>u.groups.length);
+  o.units=units.length?units:cp(d.units);
   const gids=[];o.units.forEach(u=>u.groups.forEach(g=>gids.push(g.id)));const gset=new Set(gids);
   const unitOf={};o.units.forEach(u=>u.groups.forEach(g=>unitOf[g.id]=u.id));
-  // passtyper med tillåtna tider
-  const tids=new Set();
-  const types=(Array.isArray(st.types)?st.types:[]).filter(t=>t&&typeof t==='object').slice(0,10).map((t,i)=>{
-    let id=cleanId(t.id);if(!/^[a-z]/.test(id)||tids.has(id)||ids.has(id)){let k=1;while(tids.has('t'+k)||ids.has('t'+k))k++;id='t'+k;}
-    const vs=(Array.isArray(t.variants)?t.variants:[]).slice(0,12).map(x=>Array.isArray(x)?[parseTime(x[0]),parseTime(x[1])]:[null,null])
-      .filter(x=>x[0]&&x[1]&&x[0]!=='24:00'&&okVariant(x[0],x[1],o.rules.night));
-    if(!vs.length)return null;tids.add(id);
-    return {id,name:String(t.name??'').replace(/\s+/g,' ').trim().slice(0,20)||'Pass',color:/^#[0-9a-f]{6}$/i.test(t.color)?t.color.toLowerCase():PALETTE[i%PALETTE.length],
-      // äldre data saknar uppgiften om kvällspass; då gissas den från tiderna en gång
-      eve:typeof t.eve==='boolean'?t.eve:vs.filter(x=>hm(x[1])>18*60).length*2>=vs.length,variants:vs};}).filter(Boolean);
-  o.types=types.length?types:JSON.parse(JSON.stringify(d.types));
-  const tset=new Set(o.types.map(t=>t.id));
-  o.demand={};
-  gids.forEach(g=>{o.demand[g]={};['weekday','weekend'].forEach(w=>{o.demand[g][w]={};
-    o.types.forEach(t=>{const src=st.demand&&st.demand[g]&&st.demand[g][w]?st.demand[g][w][t.id]:undefined;
-      o.demand[g][w][t.id]=Math.max(0,Math.min(20,Math.round(num(src,0))));});});});
-  const out={v:7,example:!!S.example,stale:!!S.stale,savedAt:typeof S.savedAt==='string'?S.savedAt:null,settings:o,staff:[],wishes:{},locks:{},schedule:null};
+  // bemanningskurvor per grupp; en grupp utan kurva får standardkurvan
+  o.curves={};
+  gids.forEach(g=>{const c=st.curves&&st.curves[g]&&typeof st.curves[g]==='object'?st.curves[g]:null;o.curves[g]={};
+    ['weekday','weekend'].forEach(w=>o.curves[g][w]=cleanCurve(c&&Array.isArray(c[w])?c[w]:DEFAULT_CURVE[w],d0,d1));});
+  const out={v:8,example:!!S.example,stale:!!S.stale,savedAt:typeof S.savedAt==='string'?S.savedAt:null,settings:o,staff:[],locks:{},schedule:null};
   const seen=new Set();
   (Array.isArray(S.staff)?S.staff:[]).forEach((x,i)=>{if(!x||typeof x!=='object')return;
     let id=String(x.id||'').replace(/[^\w-]/g,'');if(!id||seen.has(id))id='p'+i+'x'+Math.random().toString(36).slice(2,7);seen.add(id);
     const group=gset.has(x.group)?x.group:gids[0];
-    const tl=Array.isArray(x.types)?x.types.filter(t=>tset.has(t)):null;
-    const gl=Array.isArray(x.groups)?x.groups.filter(g=>gset.has(g)&&g!==group&&unitOf[g]===unitOf[group]):null;
     const ml=x.maxLen==null||x.maxLen===''?null:Math.round(num(x.maxLen,NaN));
+    // äldre data kan ha fyra helglag; de blir två, udda och jämna veckor
+    const wgi=Math.max(0,'ABCD'.indexOf(x.wg));
     out.staff.push({id,name:String(x.name??'').replace(/\s+/g,' ').trim().slice(0,60)||'Namnlös',
-      pct:Math.max(5,Math.min(100,Math.round(num(x.pct,100)))),group,wg:WG[wgIndex(x,o.rules.wkEvery)],pref:x.pref==='dag'||x.pref==='kvall'?x.pref:'',
-      types:tl&&tl.length&&tl.length<o.types.length?tl:null,earliest:parseTime(x.earliest),latest:parseTime(x.latest),
-      maxLen:isFinite(ml)&&ml>=60&&ml<=720?ml:null,groups:gl});});
+      pct:Math.max(5,Math.min(100,Math.round(num(x.pct,100)))),group,wg:WG[wgi%2],
+      earliest:parseTime(x.earliest),latest:parseTime(x.latest),maxLen:isFinite(ml)&&ml>=60&&ml<=MAX_SHIFT?ml:null});});
   const sids=new Set(out.staff.map(x=>x.id));
-  const okCode=v=>{const c=parseCode(v);if(!c)return false;const t=o.types.find(y=>y.id===c.t);return !!t&&c.i<t.variants.length&&(!c.g||gset.has(c.g));};
+  const okCode=v=>{const c=parseCode(v);return !!c&&(!c.g||gset.has(c.g));};
   const copyMap=(src,dst,okVal)=>{if(!src||typeof src!=='object')return;Object.keys(src).forEach(id=>{if(!sids.has(id)||!src[id]||typeof src[id]!=='object')return;
     const o2={};Object.keys(src[id]).forEach(k=>{if(/^\d+$/.test(k)&&+k<o.weeks*7&&okVal(src[id][k]))o2[k]=src[id][k];});dst[id]=o2;});};
-  copyMap(S.wishes,out.wishes,v=>v==='L');
   copyMap(S.locks,out.locks,v=>v==='-'||okCode(v));
   if(S.schedule&&typeof S.schedule==='object'){out.schedule={};copyMap(S.schedule,out.schedule,okCode);}
+  balanceTeams(out.staff,out.locks,o.weeks);
   return out;
 }
 
@@ -588,116 +605,139 @@ let M=null, RNG=Math.random;
 
 function buildModel(S){
   const st=S.settings,r=st.rules;
-  // vikterna för den här modellen: standard plus valt läge för avvägningen mellan helger och sexdagarsveckor
-  const w=Object.assign({},W,BALANCE[r.balance]||{});
+  const w=Object.assign({},W);
   w.lawFull=w.rest;w.rest=w.weekRest=w.lawSearch;
   // fri utlåning inom avdelningen kostar nästan inget; aldrig utlåning stängs av helt längre ner
   if(r.lend==='fritt')w.away=5;
-  const WK=st.weeks,N=WK*7;
+  const WK=st.weeks,N=WK*7,NB=Math.max(1,Math.round(WK/BLOCK_WEEKS));
   const days=[];for(let d=0;d<N;d++)days.push({d,dow:d%7,w:Math.floor(d/7),we:d%7>=5});
   // grupperna i en platt lista; varje grupp vet sin avdelning
-  const G=[],U=st.units.map((u,ui)=>({id:u.id,name:u.name,groups:[]})),gIdx={};
+  const G=[],U=st.units.map(u=>({id:u.id,name:u.name,groups:[]})),gIdx={};
   st.units.forEach((u,ui)=>u.groups.forEach(g=>{gIdx[g.id]=G.length;U[ui].groups.push(G.length);G.push({id:g.id,name:g.name,unit:ui});}));
-  const T=st.types,nT=T.length,tIdx={};T.forEach((t,i)=>tIdx[t.id]=i);
-  const V=[],byKind=T.map(()=>[]),codeIdx={};
-  // ett nattpass får sluttid efter 24:00, så att vilan räknas rätt mot nästa dags pass
-  T.forEach((t,ti)=>t.variants.forEach((x,i)=>{const a=hm(x[0]),b=a+spanMin(x[0],x[1]),gross=b-a;codeIdx[t.id+'.'+i]=V.length;byKind[ti].push(V.length);
-    V.push({kind:ti,code:t.id+'.'+i,st:a,en:b,gross,net:Math.max(0,gross-(gross>BREAK_AFTER?st.breakMin:0))});}));
-  const nV=V.length;
-  const sh={V,byKind,codeIdx,st:Int16Array.from(V,x=>x.st),en:Int16Array.from(V,x=>x.en),net:Int16Array.from(V,x=>x.net),
-    kind:Uint8Array.from(V,x=>x.kind),eve:Uint8Array.from(V,x=>T[x.kind].eve?1:0)};
-  const typeEve=T.map(t=>t.eve?1:0);
-  // vila runt ledigheten mäts mot de tidigaste sluttiderna och senaste starttiderna som finns bland passen
-  const minEnd=nV?Math.min(...V.map(x=>x.en)):0,maxStart=nV?Math.max(...V.map(x=>x.st)):0;
+  const nG=G.length;
+  // Tidpunkter: arbetsdagens start och slut, varje hel- och halvtimme och kurvornas egna tider. Passen börjar och
+  // slutar på dem, och bemanningen räknas i intervallen mellan dem.
+  const d0=hm(st.day.start),d1=hm(st.day.end),ts=new Set([d0,d1]);
+  for(let t=Math.ceil((d0+1)/30)*30;t<d1;t+=30)ts.add(t);
+  G.forEach(g=>['weekday','weekend'].forEach(k=>(st.curves[g.id]&&st.curves[g.id][k]||[]).forEach(([t])=>{const m=hm(t);if(m>d0&&m<d1)ts.add(m);})));
+  // låsta pass med andra tider, så att bemanningen räknas rätt även för dem
+  Object.values(S.locks||{}).forEach(L=>Object.values(L).forEach(c=>{const pc=parseCode(c);if(pc)[pc.st,pc.en].forEach(m=>{if(m>d0&&m<d1)ts.add(m);});}));
+  const TP=[...ts].sort((a,b)=>a-b),K=TP.length-1;
+  const kLen=Int16Array.from({length:K},(_,k)=>TP[k+1]-TP[k]),kLate=Uint8Array.from({length:K},(_,k)=>TP[k]+TP[k+1]>=30*60?1:0);
+  // alla pass med start och slut bland tidpunkterna och längd inom spannet; låsta pass med andra tider läggs till som extra
+  const V=[],codeIdx={};
+  const addV=(a,b,extra)=>{const code=codeOf(a,b);if(codeIdx[code]!==undefined)return codeIdx[code];const gross=b-a;
+    let kA=0;while(kA<K&&TP[kA]<a)kA++;let kB=kA;while(kB<K&&TP[kB+1]<=b)kB++;
+    V.push({code,st:a,en:b,gross,net:gross-breakFor(gross),kA,kB,kind:kindOf(a,b),extra:!!extra});codeIdx[code]=V.length-1;return V.length-1;};
+  for(let i=0;i<TP.length;i++)for(let j=i+1;j<TP.length;j++){const g=TP[j]-TP[i];if(g>=st.shift.min&&g<=st.shift.max)addV(TP[i],TP[j],false);}
+  const nReg=V.length;
   const staff=S.staff,P=staff.length;
   const home=new Int16Array(P),unit=new Int16Array(P);
   staff.forEach((x,p)=>{home[p]=gIdx[x.group]??0;unit[p]=G[home[p]].unit;});
-  // personliga begränsningar: grupper, passtyper och tider
-  const allowG=new Uint8Array(P*G.length),allowV=new Uint8Array(P*nV),av=[];
-  staff.forEach((x,p)=>{
-    if(r.lend!=='aldrig'){if(x.groups===null)U[unit[p]].groups.forEach(g=>allowG[p*G.length+g]=1);else x.groups.forEach(id=>{const g=gIdx[id];if(g!==undefined&&G[g].unit===unit[p])allowG[p*G.length+g]=1;});}
-    allowG[p*G.length+home[p]]=1;
-    // utan "slutar senast" finns ingen gräns, så att nattpass som slutar nästa morgon går att ta
-    const tset=x.types?new Set(x.types):null,e0=x.earliest?hm(x.earliest):0,l0=x.latest?hm(x.latest):1e9,ml=x.maxLen||1e9;
-    const lists=T.map(()=>[]);
-    for(let v=0;v<nV;v++){const t=T[sh.kind[v]];if(tset&&!tset.has(t.id))continue;if(sh.st[v]<e0||sh.en[v]>l0||V[v].gross>ml)continue;allowV[p*nV+v]=1;lists[sh.kind[v]].push(v);}
-    av.push(lists);});
-  const absent=new Uint8Array(P*N),wish=new Uint8Array(P*N),lock=new Int16Array(P*N).fill(-2),lockG=new Int16Array(P*N).fill(-1),fixed=new Uint8Array(P*N);
-  staff.forEach((x,p)=>{const wi=S.wishes[x.id]||{},lk=S.locks[x.id]||{},sc=(S.schedule&&S.schedule[x.id])||{};
-    for(let d=0;d<N;d++){const i=p*N+d,k=String(d);if(wi[k]==='L')wish[i]=1;
-      if(lk[k]!==undefined){if(lk[k]==='-')lock[i]=-1;else{const pc=parseCode(lk[k]);if(pc&&codeIdx[pc.k]!==undefined){lock[i]=codeIdx[pc.k];
+  const absent=new Uint8Array(P*N),lock=new Int16Array(P*N).fill(-2),lockG=new Int16Array(P*N).fill(-1),fixed=new Uint8Array(P*N);
+  staff.forEach((x,p)=>{const lk=S.locks[x.id]||{},sc=(S.schedule&&S.schedule[x.id])||{};
+    for(let d=0;d<N;d++){const i=p*N+d,k=String(d);
+      if(lk[k]!==undefined){if(lk[k]==='-')lock[i]=-1;else{const pc=parseCode(lk[k]);if(pc){lock[i]=addV(pc.st,pc.en,true);
         // gruppen: från låsningen, annars där passet låg senast, annars hemgruppen, så att det inte hoppar
         let g=pc.g?gIdx[pc.g]:undefined;if(g===undefined){const sp=parseCode(sc[k]);if(sp&&sp.k===pc.k&&sp.g)g=gIdx[sp.g];}lockG[i]=g===undefined?home[p]:g;}}}}});
-  const wkWork=new Uint8Array(P*WK);
-  // helgrytm: med varannan helg arbetar lag A vecka 1, 3, 5 och lag B vecka 2, 4, 6; med var tredje finns tre lag
-  const E=r.wkEvery;staff.forEach((x,p)=>{const k=wgIndex(x,E);for(let w=0;w<WK;w++)wkWork[p*WK+w]=w%E===k?1:0});
-  const slots=[],byDay=Array.from({length:N},()=>[]);
-  const add=(d,g,kind,req,extra)=>{const s=slots.length;slots.push({d,g,unit:G[g].unit,kind,req:!!req,extra:!!extra,we:days[d].we});byDay[d].push(s);return s};
-  for(let d=0;d<N;d++){const wk=days[d].we?'weekend':'weekday';
-    G.forEach((g,gi)=>{const dm=st.demand[g.id]&&st.demand[g.id][wk]||{};T.forEach((t,ti)=>{const n=dm[t.id]|0;for(let j=0;j<n;j++)add(d,gi,ti,true,false);});});}
-  // avdelningens fördelning av passtyper ger varje persons rättvisa andel, räknad på de typer personen kan ta
-  const mixU=U.map((u,ui)=>{const c=new Float64Array(nT);slots.forEach(sl=>{if(sl.req&&sl.unit===ui)c[sl.kind]++;});return c;});
-  const targetMin=new Int32Array(P),wkCap=new Float64Array(P),
-    shareE=new Float32Array(P),shareT=new Float32Array(P*nT),pref=new Uint8Array(P),sixAllow=new Int16Array(P);
-  // Hur långt ett pass kan vara i snitt när man väljer de längsta tiderna. Behöver någon fler arbetsdagar än
-  // målet per vecka för att få sina timmar ens då, är de extra dagarna oundvikliga och kostar inget.
+  const nV=V.length;
+  const sh={V,codeIdx,TP,K,kLen,kLate,nReg,st:Int16Array.from(V,x=>x.st),en:Int16Array.from(V,x=>x.en),net:Int16Array.from(V,x=>x.net),
+    kind:Uint8Array.from(V,x=>x.kind),eve:Uint8Array.from(V,x=>x.kind===2?1:0),kA:Int16Array.from(V,x=>x.kA),kB:Int16Array.from(V,x=>x.kB)};
+  // närliggande tider för finslipning: start och slut högst en timme ifrån
+  sh.nb=V.map((x,v)=>{const L=[];for(let u=0;u<nReg;u++)if(u!==v&&Math.abs(V[u].st-x.st)<=60&&Math.abs(V[u].en-x.en)<=60)L.push(u);return L;});
+  const minEnd=nReg?Math.min(...V.slice(0,nReg).map(x=>x.en)):0,maxStart=nReg?Math.max(...V.slice(0,nReg).map(x=>x.st)):0;
+  // personliga begränsningar: tider. Grupperna följer inställningen för utlåning.
+  const allowG=new Uint8Array(P*nG),allowV=new Uint8Array(P*nV),av=[],inG=G.map(()=>[]);
   staff.forEach((x,p)=>{
-    targetMin[p]=Math.round(x.pct/100*st.fullTime*60*WK/15)*15;
-    wkCap[p]=targetMin[p]/WK*(1+(r.maxWeekPct||0)/100);
-    const longs=av[p].map(L=>L.length?Math.max(...L.map(v=>sh.net[v])):0).filter(v=>v>0);
-    const longNet=longs.length?longs.reduce((a,v)=>a+v,0)/longs.length:480;
+    if(r.lend!=='aldrig')U[unit[p]].groups.forEach(g=>allowG[p*nG+g]=1);
+    allowG[p*nG+home[p]]=1;
+    const e0=x.earliest?hm(x.earliest):0,l0=x.latest?hm(x.latest):1e9,ml=x.maxLen||1e9,L=[];
+    for(let v=0;v<nReg;v++){if(sh.st[v]<e0||sh.en[v]>l0||V[v].gross>ml)continue;allowV[p*nV+v]=1;L.push(v);}
+    av.push(L);});
+  // hemgruppen först, så att motorn hellre tar personal ur gruppen
+  G.forEach((g,gi)=>{for(let p=0;p<P;p++)if(home[p]===gi)inG[gi].push(p);for(let p=0;p<P;p++)if(home[p]!==gi&&allowG[p*nG+gi])inG[gi].push(p);});
+  // varannan helg: lag A arbetar helgen i vecka 1, 3, 5 och lag B i vecka 2, 4, 6
+  const wkWork=new Uint8Array(P*WK);staff.forEach((x,p)=>{const k=wgIndex(x);for(let wk=0;wk<WK;wk++)wkWork[p*WK+wk]=wk%2===k?1:0;});
+  // dagar då personen kan få ett pass av motorn: inte låsta och inte under den lediga helgen
+  const canW=new Uint8Array(P*N);
+  for(let p=0;p<P;p++)for(let d=0;d<N;d++){const dy=days[d];canW[p*N+d]=lock[p*N+d]===-2&&av[p].length&&!(dy.we&&!wkWork[p*WK+dy.w])?1:0;}
+  // vad kurvan kräver i varje intervall, per dag och grupp
+  const need=new Int16Array(Math.max(1,N*nG*K));
+  for(let d=0;d<N;d++)G.forEach((g,gi)=>{const c=(st.curves[g.id]||{})[days[d].we?'weekend':'weekday']||[],b=(d*nG+gi)*K;for(let k=0;k<K;k++)need[b+k]=curveAt(c,TP[k]);});
+  // timmar: exakt för varje fyraveckorsperiod
+  const blockT=new Int32Array(P),targetMin=new Int32Array(P),wkCap=new Float64Array(P),shareE=new Float32Array(P),sixAllow=new Int16Array(P);
+  // Kvällarnas andel per avdelning: kvällspass som kurvan kräver (antalet kl. 20) delat med alla pass personalens timmar räcker till.
+  const eveU=U.map((u,ui)=>{let eve=0;u.groups.forEach(gi=>{for(let d=0;d<N;d++){const b=(d*nG+gi)*K;let k=0;while(k<K-1&&TP[k+1]<=20*60)k++;eve+=need[b+k];}});
+    let mins=0;staff.forEach((x,p)=>{if(unit[p]===ui)mins+=x.pct/100*st.fullTime*60*WK;});const shifts=mins/450;return shifts?Math.min(.9,eve/shifts):0;});
+  staff.forEach((x,p)=>{
+    blockT[p]=Math.round(x.pct/100*st.fullTime*60*BLOCK_WEEKS/15)*15;targetMin[p]=blockT[p]*NB;
+    wkCap[p]=targetMin[p]/WK*(1+w.maxWeekPct/100);
+    const longNet=av[p].length?Math.max(...av[p].map(v=>sh.net[v])):480;
     sixAllow[p]=Math.max(0,Math.ceil(targetMin[p]/longNet)-r.maxWeekDays*WK);
-    const can=av[p].map(L=>L.length>0);
-    const canEve=can.some((c,ti)=>c&&typeEve[ti]);
-    pref[p]=x.pref==='dag'?1:x.pref==='kvall'?2:0;
-    const c=mixU[unit[p]];let tot=0;T.forEach((t,ti)=>{if(can[ti])tot+=c[ti];});
-    let e=0;T.forEach((t,ti)=>{const sh2=can[ti]&&tot?c[ti]/tot:0;shareT[p*nT+ti]=sh2;if(typeEve[ti])e+=sh2;});
-    shareE[p]=canEve?Math.max(.05,Math.min(.95,e+(pref[p]===1?-w.prefShift:pref[p]===2?w.prefShift:0))):0;
+    const canEve=av[p].some(v=>sh.eve[v]);
+    shareE[p]=canEve?Math.max(.05,Math.min(.95,eveU[unit[p]])):0;
   });
-  // låsta pass får sin plats först, annars skapas en extra plats (till exempel ett lån till en annan avdelning)
-  const lockPairs=[];
-  for(let p=0;p<P;p++)for(let d=0;d<N;d++){const l=lock[p*N+d];if(l===-2)continue;fixed[p*N+d]=1;if(l<0)continue;
-    const kd=sh.kind[l],g=lockG[p*N+d];
-    let s=byDay[d].find(s=>slots[s].kind===kd&&!slots[s].taken&&slots[s].g===g);
-    if(s===undefined)s=add(d,g,kd,false,true);
-    slots[s].taken=1;lockPairs.push([s,p,l]);}
-  const nS=slots.length;
-  const elig=[],eligM=new Uint8Array(nS*P);
-  for(let s=0;s<nS;s++){const sl=slots[s],L=[];
-    if(!sl.extra)for(let p=0;p<P;p++){const i=p*N+sl.d;if(fixed[i])continue;
-      if(sl.we&&!wkWork[p*WK+days[sl.d].w])continue;
-      if(!allowG[p*G.length+sl.g]||!av[p][sl.kind].length)continue;
-      L.push(p);eligM[s*P+p]=1;}
-    elig.push(L);}
-  const holeWe=r.fillWeekend?w.holeWd:w.holeWe;
-  const cov=Float32Array.from(slots,sl=>sl.req?(sl.we?holeWe:w.holeWd):0);
-  M={S,N,WK,P,days,sh,nV,T,nT,typeEve,G,U,gIdx,tIdx,staff,home,unit,allowG,allowV,av,absent,wish,lock,fixed,wkWork,targetMin,wkCap,sixAllow,shareE,shareT,pref,minEnd,maxStart,
-    slots,byDay,nS,elig,eligM,cov,w,rules:r,dailyRest:r.dailyRest*60,weeklyRest:r.weeklyRest*60,maxRow:r.maxRow,maxWD:r.maxWeekDays,
-    row:Array.from({length:P},()=>new Int16Array(N).fill(-1)),gridS:new Int32Array(Math.max(1,P*N)).fill(-1),slotP:new Int32Array(Math.max(1,nS)).fill(-1),slotV:new Int16Array(Math.max(1,nS)).fill(-1),
-    pen:new Float64Array(P),total:0,tmp:new Float64Array(WK),ctx:{wk:new Float64Array(WK),wc:new Int8Array(WK),tc:new Int16Array(Math.max(1,nT))},base:null,stabW:w.stab};
-  for(const [s,p,v] of lockPairs)assign(s,p,v);
+  for(let i=0;i<P*N;i++)if(lock[i]!==-2)fixed[i]=1;
+  M={S,N,WK,NB,P,days,sh,nV,G,U,nG,gIdx,staff,home,unit,allowG,allowV,av,inG,absent,lock,lockG,fixed,canW,wkWork,need,K,
+    blockT,targetMin,wkCap,sixAllow,shareE,minEnd,maxStart,w,rules:r,dailyRest:DAILY_REST*60,weeklyRest:WEEKLY_REST*60,maxRow:r.maxRow,maxWD:r.maxWeekDays,
+    row:Array.from({length:P},()=>new Int16Array(N).fill(-1)),grp:new Int16Array(Math.max(1,P*N)).fill(-1),cnt:new Int16Array(Math.max(1,N*nG*K)),
+    covP:new Float64Array(Math.max(1,N*nG)),pen:new Float64Array(P),total:0,
+    tx:{ops:[],ps:[],ks:[],np:[],nk:[],dl:0,stamp:1},pMark:new Int32Array(Math.max(1,P)),kMark:new Int32Array(Math.max(1,N*nG)),
+    it:0,tmp:new Float64Array(WK),ctx:{wk:new Float64Array(WK),wc:new Int8Array(WK),bm:new Float64Array(NB)},base:null,stabW:w.stab};
+  for(let p=0;p<P;p++)for(let d=0;d<N;d++){const l=lock[p*N+d];if(l>=0)setRaw(p,d,l,lockG[p*N+d]);}
   return M;
 }
-function assign(s,p,v){const sl=M.slots[s];M.slotP[s]=p;M.slotV[s]=v;M.gridS[p*M.N+sl.d]=s;M.row[p][sl.d]=v}
-function unassign(s){const p=M.slotP[s];if(p<0)return;const d=M.slots[s].d;M.slotP[s]=-1;M.slotV[s]=-1;M.gridS[p*M.N+d]=-1;M.row[p][d]=-1}
-// En tid som personen får jobba för passtypen: den önskade om den är tillåten, annars en slumpad tillåten.
-function fitV(q,kind,v){const m=M;if(v>=0&&m.allowV[q*m.nV+v])return v;const L=m.av[q][kind];return L.length?L[(RNG()*L.length)|0]:-1;}
+// Sätter ett pass utan poängräkning, när modellen byggs.
+function setRaw(p,d,v,g){const m=M,i=p*m.N+d,ov=m.row[p][d];if(ov>=0)covAdd(d,m.grp[i],ov,-1);m.row[p][d]=v;m.grp[i]=v>=0?g:-1;if(v>=0)covAdd(d,g,v,1);}
+function covAdd(d,g,v,s){const m=M,b=(d*m.nG+g)*m.K;for(let k=m.sh.kA[v];k<m.sh.kB[v];k++)m.cnt[b+k]+=s;}
+// Bemanningen en dag i en grupp: timmar under kurvan kostar mycket, personal utöver kurvan lite.
+function covPen(key){const m=M,w=m.w,sh=m.sh,b=key*m.K,we=m.days[(key/m.nG)|0].we,ws=we?w.shortWe:w.shortWd;let pen=0;
+  for(let k=0;k<m.K;k++){const c=m.cnt[b+k],n=m.need[b+k];
+    if(c<n)pen+=(n-c)*sh.kLen[k]*ws/60;else if(c>n){const x=c-n;pen+=x*x*sh.kLen[k]*w.surplus*(sh.kLate[k]?w.surplusLate:1)/60;}}
+  return pen;}
+// Ett pass som personen får jobba: det önskade om det är tillåtet, annars det närmaste tillåtna.
+function fitV(q,v){const m=M;if(v>=0&&m.allowV[q*m.nV+v])return v;const L=m.av[q];if(!L.length)return -1;if(v<0)return L[(RNG()*L.length)|0];
+  let best=-1,bd=1e9;for(const u of L){const dd=Math.abs(m.sh.st[u]-m.sh.st[v])+Math.abs(m.sh.en[u]-m.sh.en[v]);if(dd<bd){bd=dd;best=u;}}return best;}
+
+/* ---------- Transaktioner ----------
+   En ändring sätter ett eller flera pass. Poängen räknas om bara för de personer och dag-grupper som berörs,
+   och ändringen behålls eller rullas tillbaka. */
+function txBegin(){const t=M.tx;t.ops.length=0;t.ps.length=0;t.ks.length=0;t.stamp++;}
+function txKey(k){const m=M,t=m.tx;if(m.kMark[k]!==t.stamp){m.kMark[k]=t.stamp;t.ks.push(k);}}
+function txSet(p,d,v,g){const m=M,t=m.tx,i=p*m.N+d,ov=m.row[p][d],og=m.grp[i];if(v<0)g=-1;if(ov===v&&og===g)return;
+  t.ops.push(p,d,ov,og,v,g);
+  if(ov>=0){covAdd(d,og,ov,-1);txKey(d*m.nG+og);}
+  m.row[p][d]=v;m.grp[i]=g;
+  if(v>=0){covAdd(d,g,v,1);txKey(d*m.nG+g);}
+  if(m.pMark[p]!==t.stamp){m.pMark[p]=t.stamp;t.ps.push(p);}}
+function txDelta(){const m=M,t=m.tx;let dl=0;t.np.length=0;t.nk.length=0;
+  for(const p of t.ps){const s=pScore(p);t.np.push(s);dl+=s-m.pen[p];}
+  for(const k of t.ks){const s=covPen(k);t.nk.push(s);dl+=s-m.covP[k];}
+  t.dl=dl;return dl;}
+function txCommit(){const m=M,t=m.tx;t.ps.forEach((p,i)=>m.pen[p]=t.np[i]);t.ks.forEach((k,i)=>m.covP[k]=t.nk[i]);m.total+=t.dl;}
+function txRollback(){const m=M,o=m.tx.ops;
+  for(let j=o.length-6;j>=0;j-=6){const p=o[j],d=o[j+1],ov=o[j+2],og=o[j+3],nv=o[j+4],ng=o[j+5];
+    if(nv>=0)covAdd(d,ng,nv,-1);if(ov>=0)covAdd(d,og,ov,1);m.row[p][d]=ov;m.grp[p*m.N+d]=og;}
+  o.length=0;}
+function txTry(T){if(!M.tx.ops.length)return false;const dl=txDelta();if(dl<=0||RNG()<Math.exp(-dl/T)){txCommit();return true;}txRollback();return false;}
+// Vad en ändring skulle kosta, utan att den görs.
+function txProbe(){if(!M.tx.ops.length)return 0;const dl=txDelta();txRollback();return dl;}
+function txApply(){if(!M.tx.ops.length)return;txDelta();txCommit();}
 
 function warmStart(rows){
   if(!rows)return;const m=M;
   for(let p=0;p<m.P;p++){const r=rows[m.staff[p].id];if(!r)continue;
-    for(let d=0;d<m.N;d++){if(m.fixed[p*m.N+d]||m.gridS[p*m.N+d]>=0)continue;const pc=parseCode(r[d]);if(!pc)continue;const v0=m.sh.codeIdx[pc.k];if(v0===undefined)continue;
-      const kd=m.sh.kind[v0],v=fitV(p,kd,v0);if(v<0)continue;const g=pc.g?m.gIdx[pc.g]:m.home[p];
-      const ok=s=>m.slots[s].kind===kd&&m.slotP[s]<0&&m.eligM[s*m.P+p];
-      let s=m.byDay[d].find(s=>ok(s)&&m.slots[s].g===g);if(s===undefined)s=m.byDay[d].find(ok);
-      if(s!==undefined)assign(s,p,v);}}
+    for(let d=0;d<m.N;d++){const i=p*m.N+d;if(!m.canW[i]||m.row[p][d]>=0)continue;const pc=parseCode(r[d]);if(!pc)continue;
+      const v0=m.sh.codeIdx[pc.k];if(v0===undefined)continue;const v=fitV(p,v0);if(v<0)continue;
+      let g=pc.g&&m.gIdx[pc.g]!==undefined?m.gIdx[pc.g]:m.home[p];if(!m.allowG[p*m.nG+g])g=m.home[p];
+      setRaw(p,d,v,g);}}
 }
 function baseFrom(rows){const m=M,b=new Int32Array(Math.max(1,m.P*m.N)).fill(-1);if(!rows)return b;
   for(let p=0;p<m.P;p++){const r=rows[m.staff[p].id];if(!r)continue;for(let d=0;d<m.N;d++){const pc=parseCode(r[d]);const v=pc?m.sh.codeIdx[pc.k]:undefined;
     if(v!==undefined){const g=pc.g&&m.gIdx[pc.g]!==undefined?m.gIdx[pc.g]:m.home[p];b[p*m.N+d]=(v+1)*64+g;}}}
   return b;}
 function extract(){const rows={};const m=M;
-  for(let p=0;p<m.P;p++){const o={};for(let d=0;d<m.N;d++){const v=m.row[p][d];if(v<0)continue;const g=m.slots[m.gridS[p*m.N+d]].g;o[d]=m.sh.V[v].code+'@'+m.G[g].id;}rows[m.staff[p].id]=o;}
+  for(let p=0;p<m.P;p++){const o={};for(let d=0;d<m.N;d++){const v=m.row[p][d];if(v<0)continue;o[d]=m.sh.V[v].code+'@'+m.G[m.grp[p*m.N+d]].id;}rows[m.staff[p].id]=o;}
   return rows;}
 
 function I(sev,d,text,extra){return Object.assign({sev,d,text},extra||{})}
@@ -705,31 +745,31 @@ function I(sev,d,text,extra){return Object.assign({sev,d,text},extra||{})}
 /* ---------- Regler ----------
    pScore ger straffpoäng för en persons rad, lägre är bättre. Den räknar först ihop raden en gång (tally) och
    summerar sedan reglerna nedan, i prioritetsordning. Varje regel lägger till poäng och skriver, när out finns,
-   en förklaring i klartext. Bemanningen räknas utanför personen, i computeAll och i flyttarna. */
+   en förklaring i klartext. Bemanningen räknas utanför personen, per dag och grupp (covPen). */
 function pScore(p,out){
   const c=M.ctx;tally(p,c);
   const pen=lawDailyRest(p,c,out)+lawWeeklyRest(p,c,out)+hours(p,c,out)+weekends(p,c,out)+workDays(p,c,out)
     +restAroundOff(p,c,out)+evenWeeks(p,c,out)+fairness(p,c,out)+other(p,c,out);
-  if(out)out.stats={n:c.n,ev:c.ev,day:c.day,mins:c.mins,away:c.away,typeCount:Array.from(c.tc),minGap:c.minGap,minWeek:c.minWeek,maxWeek:c.maxWeek,
+  if(out)out.stats={n:c.n,ev:c.ev,we:c.we,day:c.day,mins:c.mins,away:c.away,minGap:c.minGap,minWeek:c.minWeek,maxWeek:c.maxWeek,
     maxRun:c.maxRun,singles:c.singles,blocks:c.blocks,freeInBlocks:c.freeInBlocks,free:M.N-c.n,wkMissing:c.wkMissing,sixWeeks:c.sixWeeks,
-    edges:c.edges,edgeRest:c.edgeRest,wkRestMin:c.wkRestMin,wkRestSum:c.wkRestSum,wkRestN:c.wkRestN,weeks:Array.from(c.wk)};
+    edges:c.edges,edgeRest:c.edgeRest,wkRestMin:c.wkRestMin,wkRestSum:c.wkRestSum,wkRestN:c.wkRestN,weeks:Array.from(c.wk),blocks4:Array.from(c.bm)};
   return pen;
 }
-// En genomgång av raden: antal pass, kvällar, timmar per vecka, dagar per vecka, pass per typ och pass utanför hemgruppen.
+// En genomgång av raden: antal pass, kvällar, timmar per vecka och period, dagar per vecka och pass utanför hemgruppen.
 function tally(p,c){
   const m=M,N=m.N,row=m.row[p],sh=m.sh,b=p*N,hg=m.home[p];
-  c.wk.fill(0);c.wc.fill(0);c.tc.fill(0);c.n=0;c.ev=0;c.day=0;c.mins=0;c.away=0;
+  c.wk.fill(0);c.wc.fill(0);c.bm.fill(0);c.n=0;c.ev=0;c.we=0;c.day=0;c.mins=0;c.away=0;
   for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;const w=(d/7)|0;
-    c.n++;c.mins+=sh.net[v];c.wk[w]+=sh.net[v];c.wc[w]++;c.tc[sh.kind[v]]++;
-    if(sh.eve[v])c.ev++;else c.day++;
-    if(m.slots[m.gridS[b+d]].g!==hg)c.away++;}
+    c.n++;c.mins+=sh.net[v];c.wk[w]+=sh.net[v];c.wc[w]++;c.bm[(w/BLOCK_WEEKS)|0]+=sh.net[v];
+    if(sh.eve[v])c.ev++;else c.day++;if(m.days[d].we)c.we++;
+    if(m.grp[b+d]!==hg)c.away++;}
 }
-// 1. Dygnsvila, arbetstidslagen 13 §: minst 11 timmar (eller avtalets gräns) mellan två pass, även när grundschemat börjar om.
+// 1. Dygnsvila, arbetstidslagen 13 §: minst 11 timmar mellan två pass, även när grundschemat börjar om.
 function lawDailyRest(p,c,out){
   const m=M,N=m.N,row=m.row[p],sh=m.sh,w=m.w;let pen=0;c.minGap=1e9;
   for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;const pv=row[(d+N-1)%N];if(pv<0)continue;
     const gap=1440+sh.st[v]-sh.en[pv];if(gap<c.minGap)c.minGap=gap;
-    if(gap<m.dailyRest){pen+=w.rest;out&&out.push(I('hard',d,`För kort dygnsvila, ${h1(gap)} h (minst ${fmtH(m.rules.dailyRest)} h)`));}}
+    if(gap<m.dailyRest){pen+=w.rest;out&&out.push(I('hard',d,`För kort dygnsvila, ${h1(gap)} h (minst ${DAILY_REST} h)`));}}
   return pen;
 }
 // 1. Veckovila, arbetstidslagen 14 §: längsta sammanhängande vila INOM varje kalendervecka, måndag 00 till söndag 24.
@@ -742,14 +782,16 @@ function lawWeeklyRest(p,c,out){
   if(first>=0)gapRec(prevEnd,first+N*1440);else best.fill(10080);
   c.minWeek=1e9;
   for(let k=0;k<WK;k++){if(best[k]<c.minWeek)c.minWeek=best[k];
-    if(best[k]<m.weeklyRest){pen+=w.weekRest;out&&out.push(I('hard',k*7,`För kort veckovila vecka ${k+1}, ${h1(best[k])} h (minst ${fmtH(m.rules.weeklyRest)} h)`,{w:k}));}}
+    if(best[k]<m.weeklyRest){pen+=w.weekRest;out&&out.push(I('hard',k*7,`För kort veckovila vecka ${k+1}, ${h1(best[k])} h (minst ${WEEKLY_REST} h)`,{w:k}));}}
   return pen;
 }
-// 3. Exakta timmar för perioden.
+// 3. Exakta timmar för varje fyraveckorsperiod.
 function hours(p,c,out){
-  const m=M,w=m.w,tg=m.targetMin[p],dev=c.mins-tg;let pen=0;
-  if(dev>w.otTol)pen+=w.hOverHard*(dev-w.otTol)/60;
-  if(dev!==0){pen+=(dev>0?w.hOver:w.hUnder)*Math.abs(dev)/60;if(out&&Math.abs(dev)>=15)out.push(I('soft',-1,`Har ${fmtDur(c.mins)} h, ska ha ${fmtDur(tg)} h`));}
+  const m=M,w=m.w,tg=m.blockT[p];let pen=0;
+  for(let b=0;b<m.NB;b++){const dev=c.bm[b]-tg;
+    if(dev>w.otTol)pen+=w.hOverHard*(dev-w.otTol)/60;
+    if(dev!==0){pen+=(dev>0?w.hOver:w.hUnder)*Math.abs(dev)/60;
+      if(out&&Math.abs(dev)>=15)out.push(I('soft',-1,`${m.NB>1?`Vecka ${b*4+1}–${b*4+4}: h`:'H'}ar ${fmtDur(c.bm[b])} h, ska ha ${fmtDur(tg)} h`));}}
   return pen;
 }
 // 4. Varannan helg: arbetshelgen har pass både lördag och söndag, den lediga helgen är helt ledig.
@@ -765,20 +807,21 @@ function weekends(p,c,out){
     else{
       if(row[sa]>=0||row[su]>=0){pen+=w.wkWrong;out&&out.push(I('hard',row[sa]>=0?sa:su,`Har pass under sin lediga helg vecka ${k+1}`));}
       // vilan under den lediga helgen räknas bara för visning
-      // bd och ad räknas utan att slå runt, så att vilan blir rätt även när helgen ligger sist eller först i perioden
       if(out&&row[sa]<0&&row[su]<0){let bd=sa-1,ad=su+1,j=0;while(row[(bd+N)%N]<0&&j++<N)bd--;j=0;while(row[ad%N]<0&&j++<N)ad++;
         const bv=row[(bd+N)%N],av2=row[ad%N];if(bv>=0&&av2>=0){const r=(ad*1440+sh.st[av2])-(bd*1440+sh.en[bv]);if(r<c.wkRestMin)c.wkRestMin=r;c.wkRestSum+=r;c.wkRestN++;}}}}
   return pen;
 }
 // 5. Arbetsdagar: högst maxWD av sju, högst maxRow i rad (sju i rad undviks starkt), ledighet i block om minst två dagar,
-//    inga ensamma arbetsdagar och helst framåtrotation (dag före kväll). Sjättedagar som timmarna gör oundvikliga kostar inget.
+//    inga ensamma arbetsdagar. Långa veckor som timmarna gör oundvikliga kostar inget.
 function workDays(p,c,out){
   const m=M,N=m.N,WK=m.WK,row=m.row[p],sh=m.sh,w=m.w;let pen=0;
   c.sixWeeks=0;let sixExtra=0;
   const mx=m.maxWD;
   for(let k=0;k<WK;k++)if(c.wc[k]>mx){c.sixWeeks++;sixExtra+=c.wc[k]-mx;out&&out.push(I('soft',k*7,`Arbetar ${c.wc[k]} dagar vecka ${k+1}`,{w:k}));}
+  // fler än fem dagar i en vecka är tillåtet upp till gränsen men undviks
+  for(let k=0;k<WK;k++)if(c.wc[k]>5)pen+=w.sixSoft*(c.wc[k]-5);
   const allow=m.sixAllow[p];
-  pen+=w.sixWeek*Math.max(0,sixExtra-allow)+w.sixSoft*sixExtra;
+  pen+=w.sixWeek*Math.max(0,sixExtra-allow);
   if(c.n>mx&&N>=7){let cnt=0,roll=0;for(let d=0;d<7;d++)if(row[d]>=0)cnt++;
     for(let d=0;d<N;d++){if(cnt>mx)roll+=cnt-mx;if(row[d]>=0)cnt--;if(row[(d+7)%N]>=0)cnt++;}
     pen+=w.sixRoll*Math.max(0,roll-3*allow);}
@@ -789,7 +832,7 @@ function workDays(p,c,out){
   let f=-1;for(let d=0;d<N;d++){if(row[d]<0&&row[(d+N-1)%N]>=0){f=d;break;}}
   c.singles=0;c.blocks=0;c.freeInBlocks=0;c.maxRun=0;
   const runEnd=(run,d)=>{c.blocks++;if(run>c.maxRun)c.maxRun=run;
-    if(run>m.maxRow){pen+=w.longRun*(run-m.maxRow)+w.run7*Math.max(0,run-m.maxRow-1);out&&out.push(I('soft',d,`Arbetar ${run} dagar i rad (mål högst ${m.maxRow})`));}};
+    if(run>m.maxRow){pen+=w.longRun*(run-m.maxRow)+w.run7*Math.max(0,run-m.maxRow-1);out&&out.push(I('soft',d,`Arbetar ${run} dagar i rad (högst ${m.maxRow})`));}};
   const freeEnd=free=>{if(free===1){c.singles++;pen+=w.singleOff;}else c.freeInBlocks+=free;};
   if(f<0){if(c.n===N&&N>0)runEnd(N,N-1);}
   else{let run=0,free=0;
@@ -802,9 +845,8 @@ function workDays(p,c,out){
   return pen;
 }
 // 5. Vila runt ledigheten: ju tidigare sista passet före en ledighet slutar och ju senare första passet efter börjar,
-//    desto fler timmar blir ledigheten. Varje förlorad timme kostar, mätt mot passens tidigaste slut och senaste start.
-//    Dygnsvilan gör att ett arbetsblock inte kan gå från kväll till dag, så alla ledigheter kan inte få både och.
-//    Kanterna runt en ledig helg väger tyngst.
+//    desto fler timmar blir ledigheten. Kanterna runt en ledig helg väger tyngst, så att den som är ledig i helgen
+//    helst inte jobbar kväll på fredagen.
 function restAroundOff(p,c,out){
   const m=M,N=m.N,WK=m.WK,row=m.row[p],sh=m.sh,w=m.w;let pen=0;c.edges=0;c.edgeRest=0;
   for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;
@@ -814,210 +856,164 @@ function restAroundOff(p,c,out){
       if(d%7===0&&row[(d+N-2)%N]<0&&!m.wkWork[p*WK+pw])wt+=w.edgeWk;pen+=wt*(m.maxStart-sh.st[v])/60;}}
   return pen;
 }
-// 5. Jämna veckor: timmarna sprids över perioden, ingen vecka mer än maxWeekPct över snittet.
+// 5. Jämna veckor: timmarna sprids över perioden, ingen vecka mycket över snittet.
 function evenWeeks(p,c,out){
   const m=M,WK=m.WK,w=m.w,wt=m.targetMin[p]/WK,cap=m.wkCap[p];let pen=0;c.maxWeek=0;
   for(let k=0;k<WK;k++){const x=(c.wk[k]-wt)/60;pen+=w.weekVar*x*x;if(c.wk[k]>c.maxWeek)c.maxWeek=c.wk[k];
     if(c.wk[k]>cap+1){pen+=w.weekOver*(c.wk[k]-cap)/60;out&&out.push(I('soft',-1,`Vecka ${k+1} har ${fmtDur(c.wk[k])} h, högst ${fmtDur(Math.floor(cap/15)*15)} h`,{w:k}));}}
   return pen;
 }
-// 6. Rättvis fördelning: varje person tar sin andel av avdelningens passtyper och kvällar, justerat för önskemål om dag eller kväll.
-function fairness(p,c,out){
-  const m=M,nT=m.nT,w=m.w;let pen=0;
-  for(let t=0;t<nT;t++){const dt=c.tc[t]-m.shareT[p*nT+t]*c.n;pen+=w.fairType*dt*dt;}
-  const dE=c.ev-m.shareE[p]*c.n;pen+=w.fair*dE*dE;
-  return pen;
-}
-// 6. Övrigt: hemgruppen, önskad ledighet, antal pass och, när ett schema anpassas, så få flyttar som möjligt.
+// 6. Rättvis fördelning: varje person tar sin andel av kvällarna, lika stor som snittet i avdelningen.
+function fairness(p,c,out){const m=M,dE=c.ev-m.shareE[p]*c.n;return m.w.fair*dE*dE;}
+// Kvällarnas andel i varje avdelning som schemat ser ut nu, bland dem som kan ta kvällspass.
+function retarget(){const m=M,ev=new Float64Array(m.U.length),n=new Float64Array(m.U.length);
+  for(let p=0;p<m.P;p++){if(!m.shareE[p])continue;const row=m.row[p];for(let d=0;d<m.N;d++){const v=row[d];if(v<0)continue;n[m.unit[p]]++;if(m.sh.eve[v])ev[m.unit[p]]++;}}
+  for(let p=0;p<m.P;p++){const u=m.unit[p];if(m.shareE[p]&&n[u])m.shareE[p]=Math.max(.05,Math.min(.95,ev[u]/n[u]));}}
+// 6. Övrigt: hemgruppen, antal pass och, när ett schema anpassas, så få flyttar som möjligt.
 function other(p,c,out){
   const m=M,N=m.N,row=m.row[p],w=m.w,b=p*N;let pen=w.away*c.away+w.shift*c.n;
-  for(let d=0;d<N;d++){if(row[d]>=0&&m.wish[b+d]){pen+=w.wish;out&&out.push(I('soft',d,'Har pass fast personen önskat ledigt'));}}
-  if(m.base){for(let d=0;d<N;d++){const v=row[d],key=v<0?-1:(v+1)*64+m.slots[m.gridS[b+d]].g;if(key!==m.base[b+d])pen+=m.stabW;}}
+  if(m.base){for(let d=0;d<N;d++){const v=row[d],key=v<0?-1:(v+1)*64+m.grp[b+d];if(key!==m.base[b+d])pen+=m.stabW;}}
   return pen;
 }
 // Full vikt för arbetstidslagen inför slutfasen. Poängen räknas om eftersom vikten ändras.
-function strictLaw(){const m=M;m.w.rest=m.w.weekRest=m.w.lawFull;computeAll();}
+function strictLaw(){const m=M;m.w.rest=m.w.weekRest=m.w.lawFull;retarget();computeAll();}
 function computeAll(){const m=M;m.total=0;for(let p=0;p<m.P;p++){m.pen[p]=pScore(p);m.total+=m.pen[p];}
-  for(let s=0;s<m.nS;s++)if(m.slotP[s]<0)m.total+=m.cov[s];}
+  for(let k=0;k<m.N*m.nG;k++){m.covP[k]=covPen(k);m.total+=m.covP[k];}}
 
+/* ---------- Första schemat ----------
+   Dag för dag och grupp för grupp läggs det pass som täcker mest av det som saknas i kurvan, hos den person
+   där det kostar minst. Helgerna först, eftersom bara halva personalen kan ta dem. Sedan fylls timmarna. */
 function greedyFill(){
-  const m=M,N=m.N;
-  for(let d=0;d<N;d++){
-    const list=m.byDay[d].slice().sort((a,b)=>(m.slots[b].req-m.slots[a].req));
-    for(const s of list){if(m.slotP[s]>=0||m.slots[s].extra)continue;
-      let best=-1,bv=-1,bd=0;const el=m.elig[s],kind=m.slots[s].kind;
-      for(let k=0;k<el.length;k++){const q=el[k];if(m.gridS[q*N+d]>=0)continue;
-        for(const v of m.av[q][kind]){assign(s,q,v);const sc=pScore(q);unassign(s);
-          const dl=sc-m.pen[q]-m.cov[s]+RNG()*0.5;
-          if(dl<bd){bd=dl;best=q;bv=v;}}}
-      if(best>=0){assign(s,best,bv);m.pen[best]=pScore(best);}
-    }}
-  computeAll();
+  const m=M,N=m.N,K=m.K,sh=m.sh,gain=new Float64Array(m.nV);
+  const order=[...Array(N).keys()].sort((a,b)=>(m.days[b].we-m.days[a].we)||(RNG()-.5));
+  for(const d of order)for(let g=0;g<m.nG;g++){const b=(d*m.nG+g)*K;
+    for(let guard=0;guard<60;guard++){
+      let any=false;for(let k=0;k<K;k++)if(m.cnt[b+k]<m.need[b+k]){any=true;break;}if(!any)break;
+      for(let v=0;v<sh.nReg;v++){let s=0;for(let k=sh.kA[v];k<sh.kB[v];k++)if(m.cnt[b+k]<m.need[b+k])s+=sh.kLen[k];gain[v]=s;}
+      let best=0,bp=-1,bv=-1;
+      for(const q of m.inG[g]){const i=q*N+d;if(!m.canW[i]||m.row[q][d]>=0)continue;
+        let vv=-1;for(const v of m.av[q])if(vv<0||gain[v]>gain[vv]||(gain[v]===gain[vv]&&sh.net[v]>sh.net[vv]))vv=v;
+        if(vv<0||!gain[vv])continue;
+        txBegin();txSet(q,d,vv,g);const dl=txProbe()+RNG()*.5;if(dl<best){best=dl;bp=q;bv=vv;}}
+      if(bp<0)break;
+      txBegin();txSet(bp,d,bv,g);txApply();}}
+  fillHours();
 }
+// Den som har för få timmar får fler pass, på den dag och tid där det kostar minst.
+function fillHours(){
+  const m=M,N=m.N,order=[...Array(m.P).keys()].sort(()=>RNG()-.5);
+  for(const p of order){
+    for(let guard=0;guard<N&&hoursDev(p)<-60;guard++){let best=-1e-9,bd=-1,bv=-1,bg=-1;
+      for(let d=0;d<N;d++){if(!m.canW[p*N+d]||m.row[p][d]>=0)continue;
+        const L=m.av[p],tries=[bestGapV(p,d,m.home[p])];for(let k=0;k<3;k++)tries.push(L[(RNG()*L.length)|0]);
+        for(const v of tries){if(v<0)continue;txBegin();txSet(p,d,v,m.home[p]);const dl=txProbe();if(dl<best){best=dl;bd=d;bv=v;bg=m.home[p];}}}
+      if(bd<0)break;
+      txBegin();txSet(p,bd,bv,bg);txApply();}}
+}
+// Det tillåtna pass som täcker mest av det som saknas i gruppen den dagen.
+function bestGapV(p,d,g){const m=M,sh=m.sh,b=(d*m.nG+g)*m.K;let best=-1,bs=-1;
+  for(const v of m.av[p]){let s=0;for(let k=sh.kA[v];k<sh.kB[v];k++){const x=m.need[b+k]-m.cnt[b+k];s+=(x>0?x*4:x<0?x:0)*sh.kLen[k];}if(s>bs){bs=s;best=v;}}
+  return best;}
+function hoursDev(p){const m=M;let t=0;for(let d=0;d<m.N;d++){const v=m.row[p][d];if(v>=0)t+=m.sh.net[v];}return t-m.targetMin[p];}
 
+/* ---------- Sökningen ----------
+   Ett slumpat drag i taget: flytta passets start eller slut, lägg till eller ta bort ett pass, flytta ett pass till
+   en annan dag, ge ett pass till en kollega (och ta ett av kollegans pass en annan dag), byt pass med en kollega samma dag
+   eller låna ut till en annan grupp. Draget behålls om det blir bättre, eller ibland ändå medan temperaturen är hög. */
 function trySwap(T){
-  const m=M,N=m.N;if(!m.nS)return;
-  const s=(RNG()*m.nS)|0,sl=m.slots[s];if(sl.extra)return;
-  const d=sl.d,p=m.slotP[s];
-  if(p>=0&&m.fixed[p*N+d])return;
-  if(p>=0&&RNG()<.3){ // byt passets längd bland de tider personen får jobba
-    const kv=m.av[p][sl.kind];if(kv.length<2)return;
-    const ov=m.slotV[s],nv=kv[(RNG()*kv.length)|0];if(nv===ov)return;
-    const o=m.pen[p];m.slotV[s]=nv;m.row[p][d]=nv;const np=pScore(p),delta=np-o;
-    if(delta<=0||RNG()<Math.exp(-delta/T)){m.pen[p]=np;m.total+=delta;}else{m.slotV[s]=ov;m.row[p][d]=ov;}
-    return;}
-  if(RNG()<.3){crossMove(T,s);return;}
-  let q;
-  if(p>=0&&RNG()<0.06)q=-1;
-  else{const el=m.elig[s];if(!el.length)return;q=el[(RNG()*el.length)|0];if(q===p)return;}
-  const t=q>=0?m.gridS[q*N+d]:-1;
-  if(t>=0&&(m.slots[t].extra||m.fixed[q*N+d]))return;
-  const vS=m.slotV[s],vT=t>=0?m.slotV[t]:-1;
-  const vQ=q>=0?fitV(q,sl.kind,vS):-1;if(q>=0&&vQ<0)return;
-  const oP=p>=0?m.pen[p]:0,oQ=q>=0?m.pen[q]:0;
-  let dCov=0;
-  if(q<0){unassign(s);dCov+=m.cov[s];}
-  else if(t<0){if(p>=0)unassign(s);else dCov-=m.cov[s];assign(s,q,vQ);}
-  else if(p>=0&&m.eligM[t*m.P+p]){const vP=fitV(p,m.slots[t].kind,vT);if(vP<0)return;unassign(s);unassign(t);assign(s,q,vQ);assign(t,p,vP);}
-  else{if(p>=0)unassign(s);else dCov-=m.cov[s];unassign(t);dCov+=m.cov[t];assign(s,q,vQ);}
-  const nP=p>=0?pScore(p):0,nQ=q>=0?pScore(q):0;
-  const delta=nP+nQ-oP-oQ+dCov;
-  if(delta<=0||RNG()<Math.exp(-delta/T)){if(p>=0)m.pen[p]=nP;if(q>=0)m.pen[q]=nQ;m.total+=delta;return;}
-  unassign(s);if(t>=0)unassign(t);
-  if(p>=0)assign(s,p,vS);if(t>=0)assign(t,q,vT);
-}
-
-/* Byte över dagar: q tar plats s och lämnar ett eget pass en annan dag, till den som hade s
-   eller tomt. Timmarna står nästan still, så helgpass kan bytas mot vardagspass. */
-function crossMove(T,s){
-  const m=M,N=m.N,sl=m.slots[s],d=sl.d,p=m.slotP[s];
-  const el=m.elig[s];if(!el.length)return;const q=el[(RNG()*el.length)|0];
-  if(q===p||m.gridS[q*N+d]>=0)return;
-  const off=(RNG()*N)|0;let t2=-1;
-  for(let k=0;k<N;k++){const d2=(off+k)%N;if(d2===d)continue;const t=m.gridS[q*N+d2];
-    if(t<0||m.fixed[q*N+d2]||m.slots[t].extra)continue;
-    if(p>=0&&(m.gridS[p*N+d2]>=0||!m.eligM[t*m.P+p]))continue;
-    t2=t;break;}
-  if(t2<0)return;
-  const vS=m.slotV[s],vT=m.slotV[t2],vQ=fitV(q,sl.kind,vS),vP=p>=0?fitV(p,m.slots[t2].kind,vT):-1;
-  if(vQ<0||(p>=0&&vP<0))return;
-  const oP=p>=0?m.pen[p]:0,oQ=m.pen[q];let dCov=0;
-  if(p>=0)unassign(s);else dCov-=m.cov[s];
-  unassign(t2);assign(s,q,vQ);
-  if(p>=0)assign(t2,p,vP);else dCov+=m.cov[t2];
-  const nP=p>=0?pScore(p):0,nQ=pScore(q),delta=nP+nQ-oP-oQ+dCov;
-  if(delta<=0||RNG()<Math.exp(-delta/T)){if(p>=0)m.pen[p]=nP;m.pen[q]=nQ;m.total+=delta;return;}
-  unassign(s);unassign(t2);if(p>=0)assign(s,p,vS);assign(t2,q,vT);
+  const m=M,N=m.N,P=m.P;if(!P)return;
+  // med jämna mellanrum flyttas målet för kvällarna till avdelningens faktiska snitt, så att rättvisan bara jämnar ut mellan personer
+  if(++m.it%50000===0){retarget();computeAll();}
+  const p=(RNG()*P)|0,d=(RNG()*N)|0,i=p*N+d;if(!m.canW[i])return;
+  const v=m.row[p][d],g=m.grp[i],r=RNG();txBegin();
+  if(v<0){   // ledig dag: lägg ett pass, oftast där det saknas folk
+    let ng=m.home[p];if(m.rules.lend!=='aldrig'&&RNG()<.15){const L=m.inG.map((x,gi)=>gi).filter(gi=>m.allowG[p*m.nG+gi]);ng=L[(RNG()*L.length)|0];}
+    const nv=RNG()<.6?bestGapV(p,d,ng):m.av[p][(RNG()*m.av[p].length)|0];if(nv>=0)txSet(p,d,nv,ng);
+  }else if(r<.33){const nb=m.sh.nb[v];if(!nb.length)return;const nv=nb[(RNG()*nb.length)|0];if(!m.allowV[p*m.nV+nv])return;txSet(p,d,nv,g);}
+  else if(r<.40){const L=m.av[p];txSet(p,d,L[(RNG()*L.length)|0],g);}
+  else if(r<.52){txSet(p,d,-1,-1);}
+  else if(r<.68){const d2=(RNG()*N)|0;if(d2===d||!m.canW[p*N+d2]||m.row[p][d2]>=0)return;txSet(p,d,-1,-1);txSet(p,d2,v,g);}
+  else if(r<.88){const L=m.inG[g],q=L[(RNG()*L.length)|0];if(q===p||!m.canW[q*N+d]||m.row[q][d]>=0)return;
+    const vq=fitV(q,v);if(vq<0)return;txSet(p,d,-1,-1);txSet(q,d,vq,g);
+    // ofta tar p ett av q:s pass en annan dag, så att timmarna står nästan still för båda
+    if(RNG()<.6){const off=(RNG()*N)|0;for(let k=0;k<N;k++){const d2=(off+k)%N;if(d2===d)continue;const u=m.row[q][d2],g2=m.grp[q*N+d2];
+      if(u<0||!m.canW[q*N+d2]||!m.canW[p*N+d2]||m.row[p][d2]>=0||!m.allowG[p*m.nG+g2])continue;const vp=fitV(p,u);if(vp<0)continue;
+      txSet(q,d2,-1,-1);txSet(p,d2,vp,g2);break;}}}
+  else if(r<.96){const L=m.inG[g],q=L[(RNG()*L.length)|0];if(q===p||!m.canW[q*N+d])return;const u=m.row[q][d],g2=m.grp[q*N+d];if(u<0)return;
+    if(!m.allowG[q*m.nG+g]||!m.allowG[p*m.nG+g2]||!m.allowV[p*m.nV+u]||!m.allowV[q*m.nV+v])return;txSet(p,d,u,g2);txSet(q,d,v,g);}
+  else{if(m.rules.lend==='aldrig')return;const L=[];for(let gi=0;gi<m.nG;gi++)if(gi!==g&&m.allowG[p*m.nG+gi])L.push(gi);if(!L.length)return;txSet(p,d,v,L[(RNG()*L.length)|0]);}
+  txTry(T);
 }
 
 /* ---------- Finslipning efter sökningen ----------
-   1. Varje person provar alla tillåtna tider för sina pass och behåller varje förbättring.
-   2. Saknas fortfarande en kvart eller två provas två tider samtidigt, eftersom tiderna ofta skiljer sig 30–60 minuter.
-   3. Räcker inte det byter personen pass med en kollega samma dag (till exempel ett kortare dagpass mot ett längre
-      tidigt pass). Båda finslipar sina övriga pass och bytet behålls bara om summan för de två blir bättre. */
+   Varje pass provar närliggande start- och sluttider och behåller varje förbättring. Sedan tas pass som bryter
+   mot vilan bort, och den som då får för få timmar får nya pass. */
 function finish(){
   const m=M;
-  for(let p=0;p<m.P;p++){bestLengths(p);if(hoursDev(p))pairLengths(p);}
-  computeAll();
-  for(let p=0;p<m.P;p++)if(hoursDev(p))swapWithColleague(p);
+  for(let round=0;round<3;round++){let any=false;for(let p=0;p<m.P;p++)if(polish(p))any=true;if(!any)break;}
   repairRest();
 }
+function polish(p){const m=M,N=m.N;let improved=false;
+  for(let d=0;d<N;d++){const i=p*N+d,v=m.row[p][d];if(v<0||!m.canW[i])continue;const g=m.grp[i];
+    let best=-1e-9,bv=-1;
+    for(const nv of m.sh.nb[v]){if(!m.allowV[p*m.nV+nv])continue;txBegin();txSet(p,d,nv,g);const dl=txProbe();if(dl<best){best=dl;bv=nv;}}
+    if(bv>=0){txBegin();txSet(p,d,bv,g);txApply();improved=true;}}
+  return improved;}
 /* Sista kontroll: ett vilobrott som sökningen inte hann reparera tas bort. Passet som kostar minst att ta bort
-   lämnas till en kollega eller tomt, så att inget brott mot vilan finns kvar. Låsta pass rörs inte. */
+   lämnas tomt, så att inget brott mot vilan finns kvar. Låsta pass rörs inte. */
 function hasRestBreach(p){const out=[];pScore(p,out);return out.some(i=>i.sev==='hard'&&i.text.startsWith('För kort'));}
 function repairRest(){
   const m=M;let changed=false;
   for(let p=0;p<m.P;p++){
-    for(let guard=0;guard<m.N&&hasRestBreach(p);guard++){let best=Infinity,bs=-1;
-      for(const s of ownShifts(p)){const v=m.slotV[s];unassign(s);const dl=pScore(p)-m.pen[p]+m.cov[s];assign(s,p,v);if(dl<best){best=dl;bs=s;}}
-      if(bs<0||best>=0)break;
-      unassign(bs);m.pen[p]=pScore(p);changed=true;}}
-  if(changed){computeAll();greedyFill();for(let p=0;p<m.P;p++)if(hoursDev(p))bestLengths(p);computeAll();}
-}
-function hoursDev(p){const m=M;let t=0;for(let d=0;d<m.N;d++){const v=m.row[p][d];if(v>=0)t+=m.sh.net[v];}return t-m.targetMin[p];}
-// pass som personen själv får finslipa: inte låsta och inte extra platser för låsningar
-function ownShifts(p){const m=M,r=[];for(let d=0;d<m.N;d++){const s=m.gridS[p*m.N+d];if(s>=0&&!m.fixed[p*m.N+d]&&!m.slots[s].extra)r.push(s);}return r;}
-function setV(p,s,v){const m=M;m.slotV[s]=v;m.row[p][m.slots[s].d]=v;}
-function bestLengths(p){const m=M;
-  for(let guard=0;guard<30;guard++){let best=-1e-9,bs=-1,bv=-1;
-    for(const s of ownShifts(p)){const cur=m.slotV[s];
-      for(const v of m.av[p][m.slots[s].kind]){if(v===cur)continue;setV(p,s,v);const dl=pScore(p)-m.pen[p];if(dl<best){best=dl;bs=s;bv=v;}setV(p,s,cur);}}
-    if(bs<0)break;setV(p,bs,bv);m.pen[p]=pScore(p);}}
-function pairLengths(p){
-  const m=M,c=[];
-  const fill=()=>{c.length=0;for(const s of ownShifts(p))for(const v of m.av[p][m.slots[s].kind])if(v!==m.slotV[s])c.push([s,v]);};
-  fill();if(c.length>400)return;   // många tider per pass: parsökningen blir för dyr och behövs sällan
-  for(let guard=0;guard<4&&hoursDev(p);guard++){let best=-1e-9,bi=-1,bj=-1;
-    for(let i=0;i<c.length;i++){const [s1,v1]=c[i],o1=m.slotV[s1];setV(p,s1,v1);
-      for(let j=i+1;j<c.length;j++){const [s2,v2]=c[j];if(s2===s1)continue;const o2=m.slotV[s2];setV(p,s2,v2);
-        const dl=pScore(p)-m.pen[p];if(dl<best){best=dl;bi=i;bj=j;}setV(p,s2,o2);}
-      setV(p,s1,o1);}
-    if(bi<0)break;setV(p,...c[bi]);setV(p,...c[bj]);m.pen[p]=pScore(p);
-    fill();}}
-function swapWithColleague(p){
-  const m=M,N=m.N,dev0=Math.abs(hoursDev(p));
-  const save=q=>ownShifts(q).map(s=>[s,m.slotV[s]]),restore=(q,r)=>r.forEach(([s,v])=>setV(q,s,v));
-  for(const s of ownShifts(p)){const d=m.slots[s].d;
-    for(const t of m.byDay[d]){if(t===s)continue;const q=m.slotP[t];if(q<0||q===p||m.fixed[q*N+d]||m.slots[t].extra)continue;
-      if(!m.eligM[t*m.P+p]||!m.eligM[s*m.P+q])continue;
-      const vS=m.slotV[s],vT=m.slotV[t],vp=fitV(p,m.slots[t].kind,vT),vq=fitV(q,m.slots[s].kind,vS);if(vp<0||vq<0)continue;
-      const o=m.pen[p]+m.pen[q],op=m.pen[p],oq=m.pen[q],rp=save(p),rq=save(q);
-      unassign(s);unassign(t);assign(t,p,vp);assign(s,q,vq);m.pen[p]=pScore(p);m.pen[q]=pScore(q);
-      if(Math.abs(hoursDev(p))<dev0){bestLengths(p);bestLengths(q);
-        if(m.pen[p]+m.pen[q]<o-1e-9){computeAll();return;}}   // bytet behålls
-      unassign(s);unassign(t);assign(s,p,vS);assign(t,q,vT);restore(p,rp);restore(q,rq);m.pen[p]=op;m.pen[q]=oq;}}
+    for(let guard=0;guard<m.N&&hasRestBreach(p);guard++){let best=Infinity,bd=-1;
+      for(let d=0;d<m.N;d++){if(m.row[p][d]<0||!m.canW[p*m.N+d])continue;txBegin();txSet(p,d,-1,-1);const dl=txProbe();if(dl<best){best=dl;bd=d;}}
+      if(bd<0||best>=0)break;
+      txBegin();txSet(p,bd,-1,-1);txApply();changed=true;}}
+  if(changed){fillHours();for(let p=0;p<m.P;p++)polish(p);computeAll();}
 }
 
 /* Sammanställning för visning */
 function analyze(){
-  const m=M,N=m.N,P=m.P,r=m.rules,st=m.S.settings;
+  const m=M,N=m.N,P=m.P,r=m.rules,st=m.S.settings,sh=m.sh,K=m.K;
   const persons=[],flags=new Uint8Array(Math.max(1,P*N));let hard=0,soft=0,dailyV=0,weeklyV=0;
   const saved=m.base;m.base=null;
   for(let p=0;p<P;p++){const out=[];pScore(p,out);const s=out.stats;
     let h=0;out.forEach(i=>{if(i.sev==='hard'){h++;if(i.text.startsWith('För kort dygnsvila'))dailyV++;if(i.text.includes('veckovila'))weeklyV++;
       if(i.d>=0&&i.w===undefined)flags[p*N+i.d]=2;}});
     hard+=h;soft+=out.length-h;
-    persons.push(Object.assign({target:m.targetMin[p],issues:out,hard:h,soft:out.length-h,
-      hoursOk:Math.abs(s.mins-m.targetMin[p])<15,blockPct:s.free?s.freeInBlocks/s.free:1,weekRatio:m.targetMin[p]?s.maxWeek/(m.targetMin[p]/m.WK):1},s));}
+    persons.push(Object.assign({target:m.targetMin[p],blockTarget:m.blockT[p],issues:out,hard:h,soft:out.length-h,
+      hoursOk:s.blocks4.every(x=>Math.abs(x-m.blockT[p])<15),blockPct:s.free?s.freeInBlocks/s.free:1,weekRatio:m.targetMin[p]?s.maxWeek/(m.targetMin[p]/m.WK):1},s));}
   m.base=saved;
-  const nG=m.G.length,missG=m.G.map(()=>new Int16Array(N)),holeMap=new Map();
-  let holesWd=0,holesWe=0,reqWd=0,reqWe=0;
-  const cov={wd:[0,0],we:[0,0]};
-  for(let s=0;s<m.nS;s++){const sl=m.slots[s],p=m.slotP[s],f=p>=0?1:0;
-    if(!sl.req)continue;
-    const c=cov[sl.we?'we':'wd'];c[1]++;c[0]+=f;
-    if(sl.we)reqWe++;else reqWd++;
-    if(!f){missG[sl.g][sl.d]++;if(sl.we)holesWe++;else holesWd++;
-      const k=sl.d+'|'+sl.g+'|'+sl.kind;holeMap.set(k,(holeMap.get(k)||0)+1);}}
+  // Bemanningen: för varje dag och grupp, största antal som saknas och timmar under kurvan, och de tider som inte täcks.
+  const missG=m.G.map(()=>new Int16Array(N)),gapH=m.G.map(()=>new Float64Array(N)),gaps=[];
+  let shortWd=0,shortWe=0,needWd=0,needWe=0;
+  for(let d=0;d<N;d++)for(let g=0;g<m.nG;g++){const b=(d*m.nG+g)*K,we=m.days[d].we;let mx=0,mins=0,k0=-1,kmax=0;
+    for(let k=0;k<=K;k++){const x=k<K?m.need[b+k]-m.cnt[b+k]:0;
+      if(k<K){const nm=m.need[b+k]*sh.kLen[k];if(we)needWe+=nm;else needWd+=nm;}
+      if(x>0){if(k0<0){k0=k;kmax=0;}kmax=Math.max(kmax,x);mins+=x*sh.kLen[k];if(x>mx)mx=x;}
+      else if(k0>=0){gaps.push({d,g,from:sh.TP[k0],to:sh.TP[k],n:kmax});k0=-1;}}
+    missG[g][d]=mx;gapH[g][d]=mins/60;if(we)shortWe+=mins;else shortWd+=mins;}
   const gName=g=>`${m.U[m.G[g].unit].name} ${m.G[g].name}`;
-  // Listan "att titta på" visar bara det chefen behöver göra något åt: lagbrott, tomma vardagspass
+  // Listan "att titta på" visar bara det chefen behöver göra något åt: lagbrott, luckor på vardagar
   // och den som inte får sina timmar. Övriga avvikelser per person syns på personens egen sida.
   const todo=[];
   persons.forEach((x,p)=>{
     x.issues.filter(i=>i.sev==='hard').forEach(i=>todo.push({sev:'hard',p,d:i.w!==undefined?-1:i.d,text:i.text}));
-    if(!x.hoursOk){const i=x.issues.find(i=>i.text.startsWith('Har ')&&i.text.includes(' h, ska ha '));if(i)todo.push({sev:'soft',p,d:-1,text:i.text});}});
-  const holeItems=m.U.map(()=>[]);
-  holeMap.forEach((n,k)=>{const [d,g,kind]=k.split('|').map(Number);if(m.days[d].we&&!r.fillWeekend)return;
-    holeItems[m.G[g].unit].push({sev:'hard',p:-1,d,n,text:`${gName(g)}, ${m.T[kind].name.toLowerCase()}: ${n} pass saknar personal`});});
-  m.U.forEach((u,ui)=>{const it=holeItems[ui];if(!it.length)return;
+    if(!x.hoursOk){const i=x.issues.find(i=>/ska ha /.test(i.text));if(i)todo.push({sev:'soft',p,d:-1,text:i.text});}});
+  const gapItems=m.U.map(()=>[]);
+  gaps.forEach(x=>{if(m.days[x.d].we)return;gapItems[m.G[x.g].unit].push({sev:'hard',p:-1,d:x.d,n:x.n,text:`${gName(x.g)}: ${x.n} ${x.n===1?'person':'personer'} saknas ${fmtHM(x.from)}–${fmtHM(x.to)}`});});
+  m.U.forEach((u,ui)=>{const it=gapItems[ui];if(!it.length)return;
     if(it.length<=4)it.forEach(x=>todo.push(x));
-    else todo.push({sev:'hard',p:-1,d:it[0].d,text:`${u.name}: ${it.reduce((a,x)=>a+x.n,0)} vardagspass saknar personal. Personalens timmar räcker inte till bemanningen. Lägg till personal eller minska bemanningen under Inställningar.`});});
-  // Går timmarna ihop? Jämför personalens timmar med vad passen kräver och rymmer, per avdelning och vecka.
+    else todo.push({sev:'hard',p:-1,d:it[0].d,text:`${u.name}: bemanningen täcks inte på ${it.length} ställen på vardagar. Personalens timmar räcker inte till kurvan, eller så går passen inte ihop med vilan. Lägg till personal eller sänk kurvan under Inställningar.`});});
+  // Går timmarna ihop? Jämför personalens timmar med vad kurvan kräver, per avdelning och vecka.
   const capacity={};
-  m.U.forEach((u,ui)=>{let need=0,room=0,roomWe=0,weCap=0;
-    m.slots.forEach(sl=>{if(sl.extra||!sl.req||sl.unit!==ui)return;const nets=m.sh.byKind[sl.kind].map(v=>m.sh.net[v]);if(!nets.length)return;
-      need+=Math.min(...nets);if(sl.we)roomWe+=Math.max(...nets);else room+=Math.max(...nets);});
-    // helgpassen rymmer bara så mycket som personalen kan ta under sina arbetshelger
-    persons.forEach((x,p)=>{if(m.unit[p]!==ui)return;const nets=m.av[p].flat().map(v=>m.sh.net[v]);if(nets.length)weCap+=2*m.WK/r.wkEvery*Math.max(...nets);});
-    const weShort=roomWe>weCap;room+=Math.min(roomWe,weCap);
-    const staffMin=persons.reduce((a,x,p)=>a+(m.unit[p]===ui?x.target:0),0),wkH=v=>Math.round(v/60/m.WK);
-    capacity[u.id]={staff:wkH(staffMin),need:wkH(need),room:wkH(room)};
-    if(!staffMin)return;
-    if(staffMin>room*1.02)todo.push({sev:'hard',p:-1,d:-1,text:`${u.name}: personalen har cirka ${wkH(staffMin)} timmar per vecka men passen rymmer högst ${wkH(room)}. Alla kan inte få sina timmar. Sänk tjänstgöringsgrader eller öka bemanningen under Inställningar.${weShort&&r.wkEvery>2?` Med ${EVERY[r.wkEvery]} helg tar var och en färre helgpass, så mer av tiden behöver ligga på vardagar.`:''}`});
-    else if(staffMin<need*.85)todo.push({sev:'hard',p:-1,d:-1,text:`${u.name}: personalen har cirka ${wkH(staffMin)} timmar per vecka men passen kräver minst ${wkH(need)}. Lägg till personal eller höj tjänstgöringsgrader.`});});
-  // personer som saknar tillåtna pass helt (till exempel tider som inte matchar någon passtyp)
-  persons.forEach((x,p)=>{if(!m.av[p].some(L=>L.length))todo.push({sev:'hard',p,d:-1,text:'Har inga pass som passar personens begränsningar. Ändra passtyper eller tider på personens sida.'});});
-  if(holesWe&&!r.fillWeekend)todo.push({sev:'vik',p:-1,d:-1,text:`${holesWe} helgpass går till vikarie. Med ${EVERY[r.wkEvery]} helg räcker inte personalen till alla helgpass.`});
+  m.U.forEach((u,ui)=>{let need=0;u.groups.forEach(g=>{for(let d=0;d<N;d++){const b=(d*m.nG+g)*K;for(let k=0;k<K;k++)need+=m.need[b+k]*sh.kLen[k];}});
+    // personalen är på plats under rasten också, så närvaron är något större än de betalda timmarna
+    const staffMin=persons.reduce((a,x,p)=>a+(m.unit[p]===ui?x.target:0),0),present=staffMin*1.06,wkH=v=>Math.round(v/60/m.WK);
+    capacity[u.id]={staff:wkH(staffMin),need:wkH(need)};
+    if(staffMin&&present<need*.98)todo.push({sev:'hard',p:-1,d:-1,text:`${u.name}: personalen har cirka ${wkH(staffMin)} timmar per vecka men kurvan kräver cirka ${wkH(need)}. Lägg till personal eller sänk bemanningskurvan.`});});
+  persons.forEach((x,p)=>{if(!m.av[p].length)todo.push({sev:'hard',p,d:-1,text:'Inga pass passar personens begränsningar. Ändra tiderna på personens sida.'});});
+  if(shortWe)todo.push({sev:'vik',p:-1,d:-1,text:`${Math.round(shortWe/60)} timmar på helger går till vikarie.`});
   const ord={hard:0,vik:1,soft:2};todo.sort((a,b)=>ord[a.sev]-ord[b.sev]||((a.d<0?999:a.d)-(b.d<0?999:b.d)));
   const cnt=f=>persons.filter(f).length;
   const sumFree=persons.reduce((a,x)=>a+x.free,0),sumBlock=persons.reduce((a,x)=>a+x.freeInBlocks,0);
@@ -1027,50 +1023,46 @@ function analyze(){
   const maxRun=P?Math.max(...persons.map(x=>x.maxRun)):0;
   const maxRatio=P?Math.max(...persons.map(x=>x.weekRatio)):1;
   const minGapAll=P?Math.min(...persons.map(x=>x.minGap)):1e9,minWeekAll=P?Math.min(...persons.map(x=>x.minWeek)):1e9;
-  const nightOk=m.sh.V.every(v=>v.st>=300&&v.en<=1440);
-  const below=(v,law)=>v<law?` Lagen säger ${law} timmar. Ni har valt ${fmtH(v)}, vilket kräver stöd i kollektivavtal.`:'';
-  const evShares=persons.filter((x,p)=>x.n&&!m.pref[p]&&m.shareE[p]>0).map(x=>x.ev/x.n);
+  const evShares=persons.filter((x,p)=>x.n&&m.shareE[p]>0).map(x=>x.ev/x.n),weN=persons.filter(x=>x.n).map(x=>x.we);
   const totN=persons.reduce((a,x)=>a+x.n,0),totAway=persons.reduce((a,x)=>a+x.away,0);
   const pill=(ok,tot)=>ok>=tot?'ok':'warn';
-  const per=`per ${m.WK} veckor`;
+  const pc=(a,b)=>b?Math.round(100*(1-a/b)):100;
   const law=[
-    {n:'§ 13',paper:`Dygnsvila minst ${fmtH(r.dailyRest)} timmar i följd`,how:'Arbetstidslagen 13 §. Kontrolleras mellan alla pass, även när grundschemat börjar om.'+below(r.dailyRest,LAW_DAILY),
+    {n:'§ 13',paper:`Dygnsvila minst ${DAILY_REST} timmar i följd`,how:'Arbetstidslagen 13 §. Kontrolleras mellan alla pass, även när grundschemat börjar om.',
      val:dailyV?`${dailyV} brister`:minGapAll<1e9?`Följs. Kortaste vila mellan två pass är ${h1(minGapAll)} h`:'Följs',st:dailyV?'bad':'ok'},
-    r.night?{n:'§ 13',paper:'Nattarbete',how:'Arbetstidslagen 13 §: vilan ska om möjligt omfatta 00–05. Nattpass är tillåtna i inställningarna, eftersom arbetet kräver det. Kontrollera att det stämmer med ert kollektivavtal.',
-     val:nightOk?'Inga pass mellan 00 och 05':'Nattpass används',st:'ok'}
-    :{n:'§ 13',paper:'Vilan ska omfatta tiden 00–05',how:'Arbetstidslagen 13 §. Inget pass ligger mellan midnatt och 05.',
-     val:nightOk?'Följs':'Något pass ligger mellan 00 och 05',st:nightOk?'ok':'bad'},
-    {n:'§ 14',paper:`Veckovila minst ${fmtH(r.weeklyRest)} timmar i följd varje vecka`,how:'Arbetstidslagen 14 §. Räknas inom varje kalendervecka, måndag till söndag.'+below(r.weeklyRest,LAW_WEEKLY),
-     val:weeklyV?`${weeklyV} brister`:minWeekAll<1e9?`Följs. Kortaste veckovila är ${Math.floor(minWeekAll/60)} h`:'Följs',st:weeklyV?'bad':'ok'}];
+    {n:'§ 13',paper:'Vilan ska omfatta tiden 00–05',how:'Arbetstidslagen 13 §. Arbetsdagen ligger mellan 05 och 24, så inget pass ligger på natten.',val:'Följs',st:'ok'},
+    {n:'§ 14',paper:`Veckovila minst ${WEEKLY_REST} timmar i följd varje vecka`,how:'Arbetstidslagen 14 §. Räknas inom varje kalendervecka, måndag till söndag.',
+     val:weeklyV?`${weeklyV} brister`:minWeekAll<1e9?`Följs. Kortaste veckovila är ${Math.floor(minWeekAll/60)} h`:'Följs',st:weeklyV?'bad':'ok'},
+    {n:'§ 15',paper:'Rast efter högst fem timmar',how:'Pass över fem timmar har 30 minuters rast och pass över tio timmar en timme. Rasten räknas inte som arbetstid.',val:'Följs',st:'ok'}];
   const rules=[];
   const addRule=(paper,how,val,st)=>rules.push({n:rules.length+1,paper,how,val,st});
-  addRule('Bemanning per grupp',`Antal per passtyp, vardag och helg, enligt Inställningar. ${r.fillWeekend?'Även helger fylls med ordinarie personal.':'Tomma helgpass går till vikarie.'}`,
-    `Vardagar ${cov.wd[0]} av ${cov.wd[1]} pass, helger ${cov.we[0]} av ${cov.we[1]}`,cov.wd[0]<cov.wd[1]?'bad':cov.we[0]<cov.we[1]?'warn':'ok');
+  addRule('Bemanningskurvan täcks','Från varje tid i kurvan ska minst så många arbeta, fram till nästa tid. Personal utöver kurvan läggs helst på dagen.',
+    `Vardagar ${pc(shortWd,needWd)} % av timmarna, helger ${pc(shortWe,needWe)} %`,shortWd?'bad':shortWe?'warn':'ok');
   addRule('Personalen jobbar i sin egen grupp',{aldrig:'Ingen lånas till en annan grupp. Bara du flyttar personal mellan grupper.',behov:'Motorn lånar personal till en annan grupp i avdelningen bara när bemanningen kräver det. Mellan avdelningar flyttar bara du.',
     fritt:'Motorn får lägga personal i alla grupper i avdelningen. Mellan avdelningar flyttar bara du.'}[r.lend],
     totN?`${Math.round((1-totAway/totN)*100)} % av passen i hemgruppen`:'–','ok');
-  addRule(`Varje person arbetar ${EVERY[r.wkEvery]} helg`,(r.wkEvery===2?'Udda och jämna veckor turas om.':`Personalen är indelad i ${r.wkEvery} helglag som turas om.`)+' Arbetshelg betyder både lördag och söndag.',
-    `${cnt(x=>!x.wkMissing)} av ${P} personer`,pill(cnt(x=>!x.wkMissing),P));
-  addRule('Passtyperna fördelas rättvist','Varje person tar sin andel av avdelningens passtyper och kvällspass, justerat för önskemål om dag eller kväll.',
-    evShares.length?`Kvällsandel ${Math.round(Math.min(...evShares)*100)}–${Math.round(Math.max(...evShares)*100)} % för den som inte har önskemål`:'–','ok');
+  addRule('Alla arbetar varannan helg','Systemet delar varje grupp i två lika stora helglag, udda och jämna veckor, så att alla arbetar lika många helger. Arbetshelg betyder både lördag och söndag.',
+    weN.length?`${Math.min(...weN)===Math.max(...weN)?`Alla har ${weN[0]}`:`${Math.min(...weN)}–${Math.max(...weN)}`} helgpass · ${cnt(x=>!x.wkMissing)} av ${P} arbetar hela sina helger`:'–',pill(cnt(x=>!x.wkMissing),P));
+  addRule('Kvällarna fördelas rättvist','Varje person tar sin andel av kvällspassen, de som slutar efter 19.',
+    evShares.length?`Kvällsandel ${Math.round(Math.min(...evShares)*100)}–${Math.round(Math.max(...evShares)*100)} % av passen`:'–','ok');
   const rec=[
-    {n:'A',paper:'Alla får exakt sina timmar',how:`Heltid ${String(st.fullTime).replace('.',',')} h per vecka. Motorn väljer bland passtyperna tider så att timmarna går jämnt ut.`,
+    {n:'A',paper:'Alla får exakt sina timmar varje fyraveckorsperiod',how:`Heltid ${String(st.fullTime).replace('.',',')} h per vecka, alltså ${fmtDur(st.fullTime*60*4)} h på fyra veckor. Motorn väljer passens längd så att timmarna går jämnt ut.`,
      val:`${hoursOk} av ${P} personer`,st:pill(hoursOk,P)},
     {n:'B',paper:'Ledighet i block om minst två dagar',how:'En ensam ledig dag mellan arbetsdagar ger sällan riktig återhämtning.',
      val:`${Math.round(blockPct*100)} % av ledigheten`,st:blockPct>=.85?'ok':'warn'},
-    {n:'C',paper:`Högst ${r.maxRow} arbetsdagar i rad och högst ${r.maxWeekDays} av 7 dagar`,how:'Ett mål. Heltidare får de längre passen så att timmarna räcker på färre dagar. Med korta pass behöver en heltidare ändå ibland fler dagar på en vecka. Sju dagar i rad undviks starkt.',
+    {n:'C',paper:`Högst ${r.maxRow} arbetsdagar i rad och högst ${r.maxWeekDays} av 7 dagar`,how:'Fler än fem dagar i en vecka undviks men är tillåtet upp till gränsen. Sju dagar i rad undviks starkt.',
      val:`Längsta arbetsperiod ${maxRun} dagar · ${sixW} ${sixW===1?'vecka':'veckor'} med fler än ${r.maxWeekDays} arbetsdagar`,st:maxRun<=r.maxRow&&!sixW?'ok':'warn'},
-    {n:'D',paper:'Jämna veckor',how:`Ingen vecka mer än ${r.maxWeekPct} % över snittet.`,
-     val:`Tyngsta vecka ${Math.round(maxRatio*100)} % av snittet`,st:maxRatio<=1+r.maxWeekPct/100+.01?'ok':'warn'},
-    {n:'E',paper:'Lång vila runt ledigheten',how:'Sista passet före en ledighet slutar så tidigt som möjligt och första passet efter börjar så sent som möjligt. Lediga helger prioriteras. Dygnsvilan gör att ett arbetsblock inte kan gå från kväll till dag, så alla ledigheter kan inte få både och.',
+    {n:'D',paper:'Jämna veckor',how:'Timmarna sprids över perioden, så att ingen vecka blir mycket tyngre än snittet.',
+     val:`Tyngsta vecka ${Math.round(maxRatio*100)} % av snittet`,st:maxRatio<=1+W.maxWeekPct/100+.01?'ok':'warn'},
+    {n:'E',paper:'Lång vila runt ledigheten',how:'Sista passet före en ledighet slutar så tidigt som möjligt och första passet efter börjar så sent som möjligt. Lediga helger prioriteras, så den som är ledig i helgen slipper helst fredagskvällen.',
      val:wkN?`Lediga helger ger i snitt ${Math.round(wkSum/wkN/60)} h vila, kortast ${Math.floor(wkMinAll/60)} h`:'Inga lediga helger',st:'ok'}];
-  return {persons,flags,missG,capacity,todo,hard,soft,holesWd,holesWe,reqWd,reqWe,dailyV,weeklyV,rules,rec,law,hoursOk,blockPct,maxRun,minGapAll,totAway,totN};
+  return {persons,flags,missG,gapH,gaps,capacity,todo,hard,soft,shortWd,shortWe,needWd,needWe,dailyV,weeklyV,rules,rec,law,hoursOk,blockPct,maxRun,minGapAll,totAway,totN};
 }
 </script>
 
 <script>
 /* ================= Gränssnitt ================= */
-const LS_KEY='schemaplaneraren-v7',OLD_KEYS=[];
+const LS_KEY='schemaplaneraren-v8',OLD_KEYS=['schemaplaneraren-v7'];
 const DOWS=['Mån','Tis','Ons','Tor','Fre','Lör','Sön'];
 const LETTERS=['M','T','O','T','F','L','S'];
 const PCTS=[100,95,90,85,80,75,70,65,60,55,50,45,40,35,30,25,20];
@@ -1083,21 +1075,22 @@ const ICON_HOME='<svg width="12" height="12" viewBox="0 0 16 16" fill="none" str
 
 // welcome är 'start' första gången appen öppnas, 'guide' medan verksamheten läggs upp och tomt annars
 let welcome='',guide=null,resetArm=false;
+let cvG=null,cvW='weekday';   // vilken bemanningskurva som visas under Inställningar
 let S=load(),A=null,busy=false,runId=0,tab='schema',mode='vecka',week=0,moved=new Set(),hist=[],todoOpen=false,statusItems=[],rulesOpen=false,popCtx=null,sheet=null,toastT=0,delArm=null;
 const $=s=>document.querySelector(s);
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function initials(n){return String(n).split(/\s+/).filter(Boolean).map(x=>x[0]).join('').slice(0,2).toUpperCase()||'?'}
 function range(v){const x=M.sh.V[v];return `${fmtShort(x.st)}–${fmtShort(x.en)}`}
-// passtypens färg som CSS-variabler, så att celler, prickar och remsor färgas likadant
-function tStyle(ti){const c=M.T[ti].color;return `--c:${c};--on:${onColor(c)}`}
-function typeName(v){return M.T[M.sh.kind[v]].name}
+// passets färg efter tid på dygnet, som CSS-variabler, så att celler, prickar och remsor färgas likadant
+function tStyle(k){const c=KINDS[k].color;return `--c:${c};--on:${onColor(c)}`}
+function typeName(v){return KINDS[M.sh.kind[v]].name}
 function clone(o){return o==null?o:JSON.parse(JSON.stringify(o))}
 function pct(x){return Math.round(x*100)+' %'}
 function dLong(dy){return `${DOWL[dy.dow]}, vecka ${dy.w+1}`}
 function dShort(dy){return `${DOW[dy.dow]} v${dy.w+1}`}
 function gFull(g){const G=M.G[g];return `${M.U[G.unit].name} ${G.name}`}
 // gruppen för en persons pass en viss dag, men bara när den inte är personens hemgrupp
-function awayLabel(p,d){const s=M.gridS[p*M.N+d];if(s<0)return '';const g=M.slots[s].g;if(g===M.home[p])return '';return M.G[g].unit===M.unit[p]?M.G[g].name:gFull(g);}
+function awayLabel(p,d){const g=M.grp[p*M.N+d];if(g<0||g===M.home[p])return '';return M.G[g].unit===M.unit[p]?M.G[g].name:gFull(g);}
 function staffIdx(g){return M.staff.map((x,p)=>p).filter(p=>M.home[p]===g)}
 function newId(){return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function allGroups(){const out=[];S.settings.units.forEach(u=>u.groups.forEach(g=>out.push({id:g.id,name:g.name,unit:u})));return out;}
@@ -1143,7 +1136,7 @@ function openBackup(){const inp=document.createElement('input');inp.type='file';
 
 /* ---------- körning ---------- */
 function refresh(){M=buildModel(S);warmStart(S.schedule);computeAll();S.schedule=extract();A=analyze();renderAll();}
-function snapshot(){hist.push(JSON.stringify({locks:S.locks,wishes:S.wishes,schedule:S.schedule,staff:S.staff,settings:S.settings,stale:S.stale,example:S.example}));if(hist.length>30)hist.shift();}
+function snapshot(){hist.push(JSON.stringify({locks:S.locks,schedule:S.schedule,staff:S.staff,settings:S.settings,stale:S.stale,example:S.example}));if(hist.length>30)hist.shift();}
 function undo(){if(busy||!hist.length)return;Object.assign(S,JSON.parse(hist.pop()));S=normalize(S);moved=new Set();closePop();persist();refresh();toast('Ångrat');}
 const yieldNow=()=>document.hidden?new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=()=>r();c.port2.postMessage(0);}):new Promise(r=>setTimeout(r,0));
 /* Kör optimeringen i små steg så att sidan inte fryser. Avbryts om den tar för lång tid. */
@@ -1236,18 +1229,16 @@ function renderStatus(){
   const bad=hardN>0,lawN=a.dailyV+a.weeklyV;
   const title=bad?`${hardN} ${hardN===1?'sak behöver':'saker behöver'} åtgärdas`:'Schemat är klart';
   const sub=[lawN?`${lawN} brister mot arbetstidslagen`:'Följer arbetstidslagen',
-    a.holesWd?`${a.holesWd} vardagspass saknar personal`:'Alla vardagspass är bemannade',
-    a.holesWe?`${a.holesWe} helgpass går till vikarie`:''].filter(Boolean).join(' · ');
+    a.shortWd?`${Math.max(1,Math.round(a.shortWd/60))} timmar saknas i bemanningen på vardagar`:'Bemanningen täcks alla vardagar',
+    a.shortWe?`${Math.max(1,Math.round(a.shortWe/60))} helgtimmar går till vikarie`:''].filter(Boolean).join(' · ');
   const more=items.length?`<span class="smore">${items.length} att titta på ${CHEV}</span>`:'';
   el.className='status '+(bad?'bad':'ok')+(todoOpen&&items.length?' open':'');
   el.innerHTML=`<button class="shead" id="sToggle" ${items.length?'':'disabled'} aria-expanded="${todoOpen}"><span class="sicon">${bad?ICON_BAD:ICON_OK}</span><span class="stext"><b>${title}</b><span>${sub}</span></span>${more}</button>`+
     (todoOpen&&items.length?`<ul class="todo">${items.map((i,k)=>`<li><button data-k="${k}"><i class="sev ${i.sev}"></i><span class="tname">${i.p>=0?esc(M.staff[i.p].name):'Bemanning'}</span><span class="what">${esc(i.text)}</span><span class="when">${i.d>=0?dShort(M.days[i.d]):''}</span></button></li>`).join('')}</ul>`:'');
 }
 
-function typeSpan(ti){const vs=M.sh.byKind[ti];if(!vs.length)return '';const a=Math.min(...vs.map(v=>M.sh.st[v])),b=Math.max(...vs.map(v=>M.sh.en[v]));return `${fmtShort(a)}–${fmtShort(b)}`;}
 function legend(){
-  const used=new Set();for(let p=0;p<M.P;p++)for(let d=0;d<M.N;d++){const v=M.row[p][d];if(v>=0)used.add(M.sh.kind[v]);}
-  return `<div class="legend">${M.T.map((t,ti)=>used.has(ti)?`<span><i class="kc" style="${tStyle(ti)}"></i>${esc(t.name)} <span class="muted">${typeSpan(ti)}</span></span>`:'').join('')}<span><i style="box-shadow:inset 0 0 0 1.5px var(--warn)"></i>Önskar ledigt</span><span><i style="background:currentColor;opacity:.4;width:6px;height:6px;border-radius:50%"></i>Ändrat av dig</span><span><span class="awaytag">CD</span>I en annan grupp</span>${moved.size?'<span><i style="box-shadow:0 0 0 2px var(--accent)"></i>Justerat av systemet</span>':''}</div>`;
+  return `<div class="legend">${KINDS.map((t,k)=>`<span><i class="kc" style="${tStyle(k)}"></i>${t.name} <span class="muted">${t.hint}</span></span>`).join('')}<span><i style="background:currentColor;opacity:.4;width:6px;height:6px;border-radius:50%"></i>Ändrat av dig</span><span><span class="awaytag">CD</span>I en annan grupp</span>${moved.size?'<span><i style="box-shadow:0 0 0 2px var(--accent)"></i>Justerat av systemet</span>':''}</div>`;
 }
 function renderSchema(){
   $('#modeSeg').querySelectorAll('button').forEach(b=>setCurrent(b,b.dataset.mode===mode));
@@ -1272,13 +1263,13 @@ function weekTable(){
     ps.forEach(p=>{const x=m.staff[p],s=a.persons[p];
       h+=`<tr><th class="nmc"><button class="who" data-p="${p}"><span class="av">${esc(initials(x.name))}</span><span class="nmw"><b>${esc(x.name)}</b><small>${x.pct} %</small></span></button></th>`;
       days.forEach(dy=>{const i=p*m.N+dy.d,v=m.row[p][dy.d];let cls='cell '+(v>=0?'kc':'off');
-        if(m.wish[i])cls+=' wish';if(m.lock[i]!==-2)cls+=' lockd';if(a.flags[i]===2)cls+=' flag';if(moved.has(i))cls+=' moved';
+        if(m.lock[i]!==-2)cls+=' lockd';if(a.flags[i]===2)cls+=' flag';if(moved.has(i))cls+=' moved';
         const where=v>=0?awayLabel(p,dy.d):'';
-        const t=`${esc(x.name)}, ${dLong(dy)}: ${v>=0?esc(typeName(v))+' '+range(v)+(where?' i '+esc(where):''):'ledig'}${m.wish[i]?', önskar ledigt':''}`;
+        const t=`${esc(x.name)}, ${dLong(dy)}: ${v>=0?esc(typeName(v))+' '+range(v)+(where?' i '+esc(where):''):'ledig'}`;
         h+=`<td class="${dy.we?'we':''}"><button class="${cls}"${v>=0?` style="${tStyle(m.sh.kind[v])}"`:''} data-p="${p}" data-d="${dy.d}" title="${t}" aria-label="${t}">${v>=0?range(v)+(where?`<small class="away">i ${esc(where)}</small>`:''):''}</button></td>`;});
       h+=`<td class="hc">${fmtDur(s.weeks[week]||0)} h</td></tr>`;});
-    if(ps.length||m.slots.some(sl=>sl.req&&sl.g===g))h+=`<tr class="cov"><th class="nmc">Bemanning ${esc(G.name)}</th>${days.map(dy=>{const miss=a.missG[g][dy.d],vik=dy.we&&!m.rules.fillWeekend;
-      return `<td class="${dy.we?'we':''}"><button class="covb" data-day="${dy.d}" data-g="${g}" title="Se hur ${DOWL[dy.dow].toLowerCase()} är bemannad i ${esc(G.name)}">${miss?`<span class="tag ${vik?'warn':'bad'}">${vik?miss+' vikarie':miss+' saknas'}</span>`:'<span class="okc">✓</span>'}</button></td>`;}).join('')}<td></td></tr>`;
+    if(ps.length||curveHas(G.id))h+=`<tr class="cov"><th class="nmc">Bemanning ${esc(G.name)}</th>${days.map(dy=>{const miss=a.missG[g][dy.d],vik=dy.we;
+      return `<td class="${dy.we?'we':''}"><button class="covb" data-day="${dy.d}" data-g="${g}" title="Se hur ${DOWL[dy.dow].toLowerCase()} är bemannad i ${esc(G.name)}">${miss?`<span class="tag ${vik?'warn':'bad'}">${vik?'vikarie':miss+' saknas'}</span>`:'<span class="okc">✓</span>'}</button></td>`;}).join('')}<td></td></tr>`;
     h+=`<tr class="addrow"><td colspan="${cols}">${addButtons(G.id)}</td></tr>`;
   });
   return h+'</tbody></table></div>'+legend();
@@ -1293,7 +1284,7 @@ function periodView(){
       h+=`<div class="prow"><button class="who" data-p="${p}"><span class="av">${esc(initials(x.name))}</span><span class="nmw"><b>${esc(x.name)}</b><small>${x.pct} %</small></span></button><div class="strip" style="grid-template-columns:repeat(${m.WK},minmax(0,1fr))">`;
       weeks.forEach(w=>{h+='<div class="wk">';
         for(let d=w*7;d<w*7+7;d++){const i=p*m.N+d,v=m.row[p][d],dy=m.days[d];
-          let cls='c '+(v>=0?'kc':'free'+(dy.we?' we':''));if(m.wish[i])cls+=' wish';if(a.flags[i]===2)cls+=' flag';if(moved.has(i))cls+=' moved';
+          let cls='c '+(v>=0?'kc':'free'+(dy.we?' we':''));if(a.flags[i]===2)cls+=' flag';if(moved.has(i))cls+=' moved';
           const where=v>=0?awayLabel(p,d):'';if(where)cls+=' awayc';
           const t=`${dLong(dy)}: ${v>=0?esc(typeName(v))+' '+range(v)+(where?' i '+esc(where):''):'ledig'}`;
           h+=`<button class="${cls}"${v>=0?` style="${tStyle(m.sh.kind[v])}"`:''} data-p="${p}" data-d="${d}" title="${t}" aria-label="${esc(x.name)}, ${t}"></button>`;}
@@ -1313,38 +1304,36 @@ function placePop(el){const pop=$('#pop');pop.hidden=false;
   pop.style.left=left+'px';pop.style.top=top+'px';}
 function closePop(){$('#pop').hidden=true;popCtx=null;}
 function openDayPop(p,d,el){
-  const m=M,x=m.staff[p],dy=m.days[d],cur=m.row[p][d],i=p*m.N+d,st=S.settings,wk=dy.we?'weekend':'weekday';
+  const m=M,x=m.staff[p],dy=m.days[d],cur=m.row[p][d],i=p*m.N+d,TP=m.sh.TP;
   popCtx={p,d};
-  const curS=m.gridS[i],curG=curS>=0?m.slots[curS].g:-1;
-  // passtyper som behövs i avdelningen den här dagen, och de som passet redan har
-  const unitGroups=m.U[m.unit[p]].groups;
-  const needed=m.T.map((t,ti)=>unitGroups.some(g=>(st.demand[m.G[g].id]&&st.demand[m.G[g].id][wk]||{})[t.id]>0)||(cur>=0&&m.sh.kind[cur]===ti));
+  const curG=cur>=0?m.grp[i]:-1;
+  // nuvarande tid, annars arbetsdagens start och ett pass på ungefär åtta och en halv timme
+  const st0=cur>=0?m.sh.st[cur]:TP[0],en0=cur>=0?m.sh.en[cur]:TP.reduce((b,t)=>Math.abs(t-st0-510)<Math.abs(b-st0-510)?t:b,TP[TP.length-1]);
+  const times=[...new Set([...TP,st0,en0])].sort((a,b)=>a-b),opts=(sel,list)=>list.map(t=>`<option value="${t}"${t===sel?' selected':''}>${fmtHM(t)}</option>`).join('');
   let h=`<div class="ph"><b>${esc(x.name)}</b><span>${dLong(dy)}${dy.we&&!m.wkWork[p*m.WK+dy.w]?' · ledig helg':''}</span></div><div class="sep"></div>`;
-  m.T.forEach((t,ti)=>{if(!needed[ti])return;const vs=m.sh.byKind[ti];if(!vs.length)return;
-    h+=`<div class="vrow"><span class="vl"><i class="dot kc" style="${tStyle(ti)}"></i>${esc(t.name)}</span><div class="vbs">${vs.map(v=>{const okv=m.allowV[p*m.nV+v];
-      return `<button class="vbtn${cur===v?' on':''}${okv?'':' dim'}" data-act="set" data-v="${v}" title="${range(v)}${okv?'':' · utanför personens begränsningar'}">${range(v)}</button>`;}).join('')}</div></div>`;});
+  h+=`<div class="vrow"><span class="vl">${cur>=0?'Tid':'Lägg ett pass'}</span><div class="ptime"><select id="popSt" aria-label="Börjar">${opts(st0,times.slice(0,-1))}</select>–<select id="popEn" aria-label="Slutar">${opts(en0,times.slice(1))}</select><button class="btn primary" data-act="set">${cur>=0?'Ändra':'Lägg pass'}</button></div></div>`;
   if(cur>=0){
-    const own=unitGroups,other=m.G.map((G,g)=>g).filter(g=>m.G[g].unit!==m.unit[p]);
+    const own=m.U[m.unit[p]].groups,other=m.G.map((G,g)=>g).filter(g=>m.G[g].unit!==m.unit[p]);
     h+=`<div class="vrow"><span class="vl">${ICON_HOME}Grupp</span><div class="vbs">${own.map(g=>`<button class="vbtn${curG===g?' on':''}" data-act="bg" data-g="${g}">${esc(m.G[g].name)}${g===m.home[p]?' (hem)':''}</button>`).join('')}</div></div>`;
     if(other.length)h+=`<div class="vrow"><span class="vl muted small">Låna ut till en annan avdelning</span><div class="vbs">${other.map(g=>`<button class="vbtn${curG===g?' on':''}" data-act="bg" data-g="${g}">${esc(gFull(g))}</button>`).join('')}</div></div>`;}
-  h+=`<button class="item${cur<0?' cur':''}" data-act="off"><i class="dot" style="background:var(--surface-3)"></i>Ledig${cur<0?'<span class="r">✓</span>':''}</button><div class="sep"></div>`;
-  h+=`<button class="item" data-act="wish"><span>Önskar ledigt<br><span class="muted small">samma dag varje period</span></span><span class="toggle${m.wish[i]?' on':''}"></span></button>`;
+  h+=`<div class="sep"></div><button class="item${cur<0?' cur':''}" data-act="off"><i class="dot" style="background:var(--surface-3)"></i>Ledig${cur<0?'<span class="r">✓</span>':''}</button><div class="sep"></div>`;
   if(m.lock[i]!==-2)h+=`<div class="sep"></div><button class="item" data-act="unlock" style="color:var(--accent)">Låt systemet välja igen</button>`;
   $('#pop').innerHTML=h;placePop(el);
 }
-function ensure(id){S.locks[id]=S.locks[id]||{};S.wishes[id]=S.wishes[id]||{};S.schedule=S.schedule||{};S.schedule[id]=S.schedule[id]||{};}
+function ensure(id){S.locks[id]=S.locks[id]||{};S.schedule=S.schedule||{};S.schedule[id]=S.schedule[id]||{};}
 function popAction(btn){
-  const act=btn.dataset.act,ctx=popCtx;if(!ctx)return;closePop();
-  const {p,d}=ctx,x=M.staff[p],key=String(d),keys=[p*M.N+d],s0=M.gridS[p*M.N+d];
-  const curG=s0>=0?M.slots[s0].g:M.home[p];
-  change(()=>{ensure(x.id);const L=S.locks[x.id],Wi=S.wishes[x.id],R=S.schedule[x.id];
-    if(act==='set'){const c=M.sh.V[+btn.dataset.v].code+'@'+M.G[curG].id;L[key]=c;R[key]=c;}
+  const act=btn.dataset.act,ctx=popCtx;if(!ctx)return;
+  const a=act==='set'?+$('#popSt').value:0,b=act==='set'?+$('#popEn').value:0;
+  if(act==='set'&&(b<=a||b-a>MAX_SHIFT)){toast(b<=a?'Passet måste sluta efter att det börjar.':'Ett pass kan vara högst 12 timmar.');return;}
+  closePop();
+  const {p,d}=ctx,x=M.staff[p],key=String(d),keys=[p*M.N+d],g0=M.grp[p*M.N+d],curG=g0>=0?g0:M.home[p];
+  change(()=>{ensure(x.id);const L=S.locks[x.id],R=S.schedule[x.id];
+    if(act==='set'){const c=codeOf(a,b)+'@'+M.G[curG].id;L[key]=c;R[key]=c;}
     else if(act==='bg'){const cur=M.row[p][d];if(cur<0)return null;const c=M.sh.V[cur].code+'@'+M.G[+btn.dataset.g].id;L[key]=c;R[key]=c;}
     else if(act==='off'){L[key]='-';delete R[key];}
-    else if(act==='wish'){if(Wi[key]==='L')delete Wi[key];else Wi[key]='L';return null;}
     else if(act==='unlock'){delete L[key];return null;}
     return keys;},
-    act==='wish'?'Önskemålet är sparat':act==='unlock'?'Systemet väljer igen':act==='bg'?`${x.name} är i ${gFull(+btn.dataset.g)} den dagen`:'Ändringen är sparad');
+    act==='unlock'?'Systemet väljer igen':act==='bg'?`${x.name} är i ${gFull(+btn.dataset.g)} den dagen`:'Ändringen är sparad');
 }
 
 /* ---------- personpanel ---------- */
@@ -1357,11 +1346,11 @@ function openPerson(p,keep){
   const grouped=new Map();
   s.issues.forEach(i=>{const g=grouped.get(i.text)||{sev:i.sev,text:i.text,d:i.d,w:i.w,days:[]};if(i.d>=0&&i.w===undefined)g.days.push(dShort(m.days[i.d]));grouped.set(i.text,g);});
   const issues=[...grouped.values()].sort((a,b)=>(a.sev==='hard'?0:1)-(b.sev==='hard'?0:1)||a.d-b.d).map(g=>({sev:g.sev,text:g.text,when:g.days.join(', ')}));
-  if(!m.av[p].some(L=>L.length))issues.unshift({sev:'hard',text:'Inga pass passar personens begränsningar. Ändra passtyper eller tider nedan.',when:''});
+  if(!m.av[p].length)issues.unshift({sev:'hard',text:'Inga pass passar personens begränsningar. Ändra tiderna nedan.',when:''});
   let cal='<div class="cal"><span></span>'+LETTERS.map(l=>`<span class="hd">${l}</span>`).join('');
   for(let w=0;w<m.WK;w++){cal+=`<span class="wn">V${w+1}</span>`;
     for(let d=w*7;d<w*7+7;d++){const i=p*m.N+d,v=m.row[p][d],dy=m.days[d];
-      let cls='cc'+(v>=0?' kc':dy.we?' we':'');if(m.wish[i])cls+=' wish';if(A.flags[i]===2)cls+=' flag';
+      let cls='cc'+(v>=0?' kc':dy.we?' we':'');if(A.flags[i]===2)cls+=' flag';
       const sv=v>=0?m.sh.V[v]:null,aw=v>=0?awayLabel(p,d):'';
       cal+=`<button class="${cls}"${v>=0?` style="${tStyle(m.sh.kind[v])}"`:''} data-p="${p}" data-d="${d}" aria-label="${dLong(dy)}${aw?', i '+esc(aw):''}"><span class="t">${sv?fmtShort(sv.st):''}</span><span class="t">${sv?fmtShort(sv.en):''}</span>${aw?`<span class="t aw">${esc(aw)}</span>`:''}</button>`;}}
   cal+='</div>';
@@ -1375,18 +1364,17 @@ function openPerson(p,keep){
     ['Kortaste lediga helg, vila i timmar',s.wkRestMin<1e9?`${Math.floor(s.wkRestMin/60)} h`:'–'],
     ['Vila runt ledigheten utöver de lediga dygnen, snitt',s.edges?`${h1(s.edgeRest/(s.edges/2))} h`:'–']];
   const dev=s.mins-s.target,scroll=keep?$('#sheet').scrollTop:0;
-  const E=m.rules.wkEvery,same=S.staff.filter(y=>y.group===x.group),teams=[...Array(E).keys()].map(k=>same.filter(y=>wgIndex(y,E)===k).length),wk=wgIndex(x,E);
+  const same=S.staff.filter(y=>y.group===x.group),teams=[0,1].map(k=>same.filter(y=>wgIndex(y)===k).length),wk=wgIndex(x);
   const opt=(v,lab,cur)=>`<option value="${v}"${String(cur)===String(v)?' selected':''}>${lab}</option>`;
-  const hg=m.home[p],unitG=m.U[m.unit[p]].groups.filter(g=>g!==hg);
-  const tChecked=t=>!x.types||x.types.includes(t.id),gChecked=g=>x.groups===null||x.groups.includes(m.G[g].id);
+  const hg=m.home[p];
   // Överst: personens schema och hur hen har det. Under, i en egen yta: det man kan ändra.
   showSheet(`<div class="shtop"><span class="small muted">${esc(gFull(hg))}</span><span class="shbtns"><button class="btn ghost" id="shEdit">Ändra</button><button class="btn ghost" id="shClose">Stäng</button></span></div>
-    <div class="ident"><span class="av" id="shAv">${esc(initials(x.name))}</span><div><h2 id="shName">${esc(x.name)}</h2><span class="small muted">${x.pct} % · ${E===2?`arbetshelg ${wk?'jämna':'udda'} veckor`:`helglag ${WG[wk]}`}${x.pref?` · ${x.pref==='dag'?'hellre dag':'hellre kväll'}`:''}</span></div></div>
+    <div class="ident"><span class="av" id="shAv">${esc(initials(x.name))}</span><div><h2 id="shName">${esc(x.name)}</h2><span class="small muted">${x.pct} % · arbetshelg ${wk?'jämna':'udda'} veckor</span></div></div>
     <div class="stats">
-      <div class="stat"><b class="${s.hoursOk?'':'bad'}">${fmtDur(s.mins)} h</b><span>${s.hoursOk?'exakt rätt timmar':`av ${fmtDur(s.target)} h (${dev>0?'+':''}${fmtDur(dev)})`}</span></div>
+      <div class="stat"><b class="${s.hoursOk?'':'bad'}">${fmtDur(s.mins)} h</b><span>${s.hoursOk?(m.NB>1?'exakt rätt timmar varje fyraveckorsperiod':'exakt rätt timmar'):`av ${fmtDur(s.target)} h (${dev>0?'+':''}${fmtDur(dev)})`}</span></div>
       <div class="stat"><b>${s.n}</b><span>pass</span></div>
       <div class="stat"><b>${s.ev}</b><span>kvällar</span></div>
-      <div class="stat"><b>${s.free}</b><span>lediga dagar</span></div>
+      <div class="stat"><b>${s.we}</b><span>helgpass</span></div>
     </div>
     <div class="sec"><h3>Hela perioden</h3>${cal}<p class="small muted">${s.weeks.map((h,w)=>`V${w+1} ${fmtDur(h)} h`).join(' · ')}</p></div>
     <div class="sec"><h3>Att titta på</h3>${issues.length?`<ul class="list">${issues.map(i=>`<li><i class="sev ${i.sev}"></i><span>${esc(i.text)}</span><span class="when">${esc(i.when)}</span></li>`).join('')}</ul>`:'<p class="small muted">Inget att anmärka.</p>'}</div>
@@ -1397,15 +1385,11 @@ function openPerson(p,keep){
         <div class="frow"><label for="pf-name">Namn</label><input class="finput" id="pf-name" data-id="${x.id}" data-k="name" value="${esc(x.name)}" autocomplete="off"></div>
         <div class="frow"><label for="pf-pct">Tjänstgöringsgrad</label><select id="pf-pct" data-id="${x.id}" data-k="pct">${PCTS.concat([x.pct]).filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>b-a).map(v=>opt(v,v+' %',x.pct)).join('')}</select></div>
         <div class="frow"><label for="pf-group">Hemgrupp</label><select id="pf-group" data-id="${x.id}" data-k="group">${groupOptions(x.group)}</select></div>
-        <div class="frow"><label for="pf-wg">Arbetshelg</label><select id="pf-wg" data-id="${x.id}" data-k="wg">${teams.map((n,k)=>opt(WG[k],wgLabel(k,E,m.WK),WG[wk])).join('')}</select></div>
-        <div class="frow"><label for="pf-pref">Önskemål</label><select id="pf-pref" data-id="${x.id}" data-k="pref">${opt('','Inga',x.pref||'')}${opt('dag','Hellre dag',x.pref||'')}${opt('kvall','Hellre kväll',x.pref||'')}</select></div>
-      </div><p class="fhint">I ${esc(m.G[hg].name)} ${E===2?`arbetar ${teams[0]} udda och ${teams[1]} jämna helger`:`är helglagen ${teams.map((n,k)=>`${WG[k]} ${n}`).join(', ')}`}.${Math.max(...teams)-Math.min(...teams)>1?' Jämnare fördelning ger färre vikariepass.':''}</p></div>
+      </div><p class="fhint">Helgerna fördelas av systemet: i ${esc(m.G[hg].name)} arbetar ${teams[0]} udda och ${teams[1]} jämna veckors helger, så att alla arbetar lika många. Behöver ${esc(x.name)} en viss helg ledig, klicka på lördagen eller söndagen i schemat och välj Ledig. Då hamnar ${esc(x.name)} i laget som är ledigt den helgen.</p></div>
       <div class="sec"><h4>Begränsningar</h4><div class="form">
-        <div class="frow wrap"><span>Passtyper</span><span class="chks">${m.T.map(t=>`<label class="chk"><input type="checkbox" data-id="${x.id}" data-k="type" data-t="${t.id}"${tChecked(t)?' checked':''}><i class="dot kc" style="--c:${t.color}"></i>${esc(t.name)}</label>`).join('')}</span></div>
         <div class="frow"><label for="pf-earliest">Börjar tidigast</label><input class="time" id="pf-earliest" data-id="${x.id}" data-k="earliest" value="${x.earliest||''}" placeholder="–"></div>
         <div class="frow"><label for="pf-latest">Slutar senast</label><input class="time" id="pf-latest" data-id="${x.id}" data-k="latest" value="${x.latest||''}" placeholder="–"></div>
         <div class="frow"><label for="pf-maxLen">Längsta pass, timmar</label><input class="time" id="pf-maxLen" data-id="${x.id}" data-k="maxLen" value="${x.maxLen?String(x.maxLen/60).replace('.',','):''}" placeholder="–"></div>
-        ${unitG.length&&m.rules.lend!=='aldrig'?`<div class="frow wrap"><span>Kan också jobba i</span><span class="chks">${unitG.map(g=>`<label class="chk"><input type="checkbox" data-id="${x.id}" data-k="grp" data-g="${m.G[g].id}"${gChecked(g)?' checked':''}>${esc(m.G[g].name)}</label>`).join('')}</span></div>`:''}
       </div><p class="fhint">Tomt betyder ingen begränsning. ${m.rules.lend==='aldrig'?'Under Inställningar är utlåning mellan grupper avstängd, så personen jobbar bara i hemgruppen.':`Motorn lägger passen i hemgruppen och lånar ut personen till en annan grupp i ${esc(m.U[m.unit[p]].name)} ${m.rules.lend==='fritt'?'när det ger ett bättre schema':'bara när bemanningen kräver det'}.`}</p></div>
       <div><button class="btn del${delArm===x.id?' armed':''}" data-del="${x.id}">${delArm===x.id?'Klicka igen för att ta bort '+esc(x.name):'Ta bort '+esc(x.name)}</button></div>
     </section>`);
@@ -1417,22 +1401,24 @@ function openPerson(p,keep){
    lånad in eller ut, vilka pass som är tomma och vilka i gruppen som är lediga och kan hoppa in. */
 function openDay(d,g,keep){
   const m=M,dy=m.days[d],scroll=keep?$('#sheet').scrollTop:0,all=g<0,prevG=sheet&&sheet.kind==='day'?sheet.lastG:undefined;sheet={kind:'day',d,g};
-  const vik=dy.we&&!m.rules.fillWeekend;
-  const groupHtml=gi=>{const G=m.G[gi];let need=0,have=0;
-    const rows=m.T.map((t,ti)=>{const ss=m.byDay[d].filter(s=>m.slots[s].g===gi&&m.slots[s].kind===ti&&(m.slots[s].req||m.slotP[s]>=0));if(!ss.length)return '';
-      ss.sort((a,b)=>(m.slotP[a]<0)-(m.slotP[b]<0)||(m.slotV[a]>=0&&m.slotV[b]>=0?m.sh.st[m.slotV[a]]-m.sh.st[m.slotV[b]]:0));
-      const items=ss.map(s=>{const q=m.slotP[s];if(m.slots[s].req){need++;if(q>=0)have++;}
-        if(q<0)return `<li class="dempty"><span class="tag ${vik?'warn':'bad'}">${vik?'Vikarie':'Saknas'}</span><span class="muted small">Tomt pass</span></li>`;
-        const from=m.home[q]!==gi?`<span class="awaytag">från ${esc(m.G[m.home[q]].unit===G.unit?m.G[m.home[q]].name:gFull(m.home[q]))}</span>`:'';
-        return `<li><button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${from}<span class="dtime">${range(m.slotV[s])}</span></li>`;}).join('');
-      return `<div class="dtype"><div class="dth"><i class="dot kc" style="${tStyle(ti)}"></i>${esc(t.name)}<span class="muted small">${ss.filter(s=>m.slotP[s]>=0).length} av ${ss.filter(s=>m.slots[s].req).length||ss.length}</span></div><ul class="dlist">${items}</ul></div>`;}).join('');
-    const home=staffIdx(gi),out=home.filter(q=>{const s=m.gridS[q*m.N+d];return s>=0&&m.slots[s].g!==gi;});
+  const vik=dy.we,d0=hm(S.settings.day.start),d1=hm(S.settings.day.end);
+  const groupHtml=gi=>{const G=m.G[gi],b=(d*m.nG+gi)*m.K,gapH=A.gapH[gi][d];
+    const segs=[];for(let k=0;k<m.K;k++)segs.push({a:m.sh.TP[k],b:m.sh.TP[k+1],need:m.need[b+k],have:m.cnt[b+k]});
+    const ws=[];for(let q=0;q<m.P;q++)if(m.row[q][d]>=0&&m.grp[q*m.N+d]===gi)ws.push(q);
+    ws.sort((x,y)=>m.sh.st[m.row[x][d]]-m.sh.st[m.row[y][d]]||m.sh.en[m.row[x][d]]-m.sh.en[m.row[y][d]]);
+    const items=ws.map(q=>{const v=m.row[q][d],from=m.home[q]!==gi?`<span class="awaytag">från ${esc(m.G[m.home[q]].unit===G.unit?m.G[m.home[q]].name:gFull(m.home[q]))}</span>`:'';
+      return `<li><i class="dot kc" style="${tStyle(m.sh.kind[v])}"></i><button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${from}<span class="dtime">${range(v)}</span></li>`;}).join('');
+    const gaps=A.gaps.filter(x=>x.d===d&&x.g===gi).map(x=>`<span class="tag ${vik?'warn':'bad'}">${x.n} saknas ${fmtShort(x.from)}–${fmtShort(x.to)}</span>`).join('');
+    const home=staffIdx(gi),out=home.filter(q=>{const gg=m.grp[q*m.N+d];return gg>=0&&gg!==gi;});
     const free=home.filter(q=>m.row[q][d]<0);
-    const freeTxt=free.map(q=>{const notes=[];if(dy.we&&!m.wkWork[q*m.WK+dy.w])notes.push('ledig helg');if(m.wish[q*m.N+d])notes.push('önskar ledigt');
+    const freeTxt=free.map(q=>{const notes=[];if(dy.we&&!m.wkWork[q*m.WK+dy.w])notes.push('ledig helg');
       return `<button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${notes.length?`<span class="muted small"> (${notes.join(', ')})</span>`:''}`;}).join(', ');
-    return `<div class="dgroup"><div class="dgh"><h3>${esc(m.U[G.unit].name)} ${esc(G.name)}</h3><span class="${have<need?(vik?'warnt':'badt'):'okt'}">${have} av ${need} pass bemannade</span></div>
-      ${rows||'<p class="small muted">Ingen bemanning den här dagen.</p>'}
-      ${out.length?`<p class="small"><b>Utlånade:</b> ${out.map(q=>`<button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button> till ${esc(gFull(m.slots[m.gridS[q*m.N+d]].g))}`).join(', ')}</p>`:''}
+    return `<div class="dgroup"><div class="dgh"><h3>${esc(m.U[G.unit].name)} ${esc(G.name)}</h3><span class="${gapH?(vik?'warnt':'badt'):'okt'}">${gapH?`${fmtDur(gapH*60)} h under kurvan${vik?', till vikarie':''}`:`${ws.length} i tjänst, kurvan täcks`}</span></div>
+      ${covChart(segs,d0,d1,`Bemanning ${G.name}`)}
+      <p class="small muted">Linjen är bemanningskurvan, staplarna hur många som arbetar.</p>
+      ${gaps?`<div class="dgaps">${gaps}</div>`:''}
+      ${items?`<ul class="dlist">${items}</ul>`:'<p class="small muted">Ingen arbetar här den här dagen.</p>'}
+      ${out.length?`<p class="small"><b>Utlånade:</b> ${out.map(q=>`<button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button> till ${esc(gFull(m.grp[q*m.N+d]))}`).join(', ')}</p>`:''}
       <p class="small"><b>Lediga i ${esc(G.name)}:</b> ${freeTxt||'<span class="muted">ingen</span>'}</p></div>`;};
   const scopeG=g>=0?g:(prevG??0);
   showSheet(`<div class="shtop"><div class="dnav"><button class="btn ghost icon" data-dstep="-1" aria-label="Föregående dag"${d<=0?' disabled':''}>‹</button><h2>${DOWL[dy.dow]} <span class="muted">vecka ${dy.w+1}</span></h2><button class="btn ghost icon" data-dstep="1" aria-label="Nästa dag"${d>=m.N-1?' disabled':''}>›</button></div><button class="btn ghost" id="shClose">Stäng</button></div>
@@ -1442,6 +1428,29 @@ function openDay(d,g,keep){
   sheet.lastG=scopeG;
   $('#sheet').scrollTop=scroll;
 }
+/* Bemanningen som diagram. segs är intervall {a,b,need,have}: kurvan ritas som en trappa och, när have finns,
+   hur många som arbetar som staplar, röda där kurvan inte täcks. Utan have fylls ytan under kurvan och talen skrivs ut. */
+function covChart(segs,d0,d1,label){
+  if(!segs.length||d1<=d0)return '';
+  const W=420,H=150,pl=22,pr=8,pt=18,pb=20,has=segs.some(s=>s.have!=null),mx=Math.max(2,...segs.map(s=>Math.max(s.need,s.have||0)));
+  const x=t=>(pl+(t-d0)/(d1-d0)*(W-pl-pr)).toFixed(1),y=n=>(pt+(1-n/mx)*(H-pt-pb)).toFixed(1);
+  let g='';
+  const step=mx>12?4:mx>6?2:1;
+  for(let n=0;n<=mx;n+=step)g+=`<line x1="${pl}" x2="${W-pr}" y1="${y(n)}" y2="${y(n)}" class="cg"/><text x="${pl-6}" y="${(+y(n)+3.5).toFixed(1)}" class="cy">${n}</text>`;
+  for(let t=Math.ceil(d0/120)*120;t<=d1;t+=120)g+=`<text x="${x(t)}" y="${H-6}" class="cx">${fmtShort(t)}</text>`;
+  if(has)segs.forEach(s=>{if(!s.have)return;g+=`<rect x="${(+x(s.a)+.5).toFixed(1)}" y="${y(s.have)}" width="${Math.max(0,x(s.b)-x(s.a)-1).toFixed(1)}" height="${(y(0)-y(s.have)).toFixed(1)}" class="cb${s.have<s.need?' bad':''}"/>`;});
+  let path='';segs.forEach((s,i)=>{path+=`${i?'L':'M'}${x(s.a)} ${y(s.need)}L${x(s.b)} ${y(s.need)}`;});
+  if(!has)g+=`<path d="${path}L${x(segs[segs.length-1].b)} ${y(0)}L${x(segs[0].a)} ${y(0)}Z" class="ca"/>`;
+  g+=`<path d="${path}" class="cl"/>`;
+  if(!has)segs.forEach((s,i)=>{if(i&&segs[i-1].need===s.need)return;let e=i;while(e+1<segs.length&&segs[e+1].need===s.need)e++;
+    const mid=(+x(s.a)+ +x(segs[e].b))/2;if(x(segs[e].b)-x(s.a)>16)g+=`<text x="${mid.toFixed(1)}" y="${(+y(s.need)-5).toFixed(1)}" class="cn">${s.need}</text>`;});
+  return `<svg class="cchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label||'Bemanningskurva')}">${g}</svg>`;
+}
+// Kurvans punkter som intervall från arbetsdagens start till slut.
+function curveSegs(pts,d0,d1){const segs=[];const ms=pts.map(([t,n])=>[hm(t),n]);
+  if(!ms.length||ms[0][0]>d0)segs.push({a:d0,b:ms.length?ms[0][0]:d1,need:0});
+  ms.forEach(([t,n],i)=>segs.push({a:t,b:i+1<ms.length?ms[i+1][0]:d1,need:n}));return segs;}
+function curveHas(gid){const c=S.settings.curves[gid];return !!c&&['weekday','weekend'].some(w=>c[w].some(x=>x[1]>0));}
 
 /* ---------- personal ---------- */
 /* Tolkar rader som klistrats in från Excel: namn, tjänstgöringsgrad och grupp i valfri ordning.
@@ -1489,13 +1498,12 @@ function updatePastePreview(){
 }
 // Ny person hamnar i det helglag i gruppen som har minst personal.
 function newPerson(gid,name,pct){
-  const E=S.settings.rules.wkEvery,n=[...Array(E).keys()].map(k=>S.staff.filter(x=>x.group===gid&&wgIndex(x,E)===k).length);
-  return {id:newId(),name,group:gid,pct,wg:WG[n.indexOf(Math.min(...n))],pref:'',types:null,earliest:null,latest:null,maxLen:null,groups:null};}
-function wgLabel(k,E,WK){if(E===2)return k?'Jämna veckor':'Udda veckor';const ws=[];for(let w=k;w<WK;w+=E)ws.push(w+1);return `Lag ${WG[k]} (vecka ${ws.join(', ')})`;}
+  const n=[0,1].map(k=>S.staff.filter(x=>x.group===gid&&wgIndex(x)===k).length);
+  return {id:newId(),name,group:gid,pct,wg:WG[n[0]<=n[1]?0:1],earliest:null,latest:null,maxLen:null};}
 function applyPaste(replace){
   const gid=sheet.gid,rows=sheet.rows||[];if(!rows.length)return;
   edit(()=>{
-    if(replace){const gone=S.staff.filter(x=>x.group===gid).map(x=>x.id);gone.forEach(id=>{delete S.locks[id];delete S.wishes[id];if(S.schedule)delete S.schedule[id];});S.staff=S.staff.filter(x=>x.group!==gid);}
+    if(replace){const gone=S.staff.filter(x=>x.group===gid).map(x=>x.id);gone.forEach(id=>{delete S.locks[id];if(S.schedule)delete S.schedule[id];});S.staff=S.staff.filter(x=>x.group!==gid);}
     rows.forEach(r=>S.staff.push(newPerson(gid,r.name,r.pct)));
   });
   closeSheet();toast(`${rows.length} personer ${replace?'inlagda':'tillagda'} i ${groupLabel(gid)}`);
@@ -1506,59 +1514,57 @@ function addPerson(gid){const x=newPerson(gid,'Ny person',100);
   const el=$('#pf-name');if(el){el.focus();el.select();}}
 
 /* ---------- inställningar ---------- */
-// Byter index på passtider i låsningar och schema när en tid tas bort, så att inget pass byter tid i smyg.
-function remapCodes(fn){[S.locks,S.schedule].forEach(map=>{if(!map)return;Object.values(map).forEach(row=>{Object.keys(row).forEach(k=>{const v=row[k];if(v==='-')return;
-  const c=parseCode(v);if(!c)return;const nv=fn(c);if(nv===null)delete row[k];else if(nv!==v)row[k]=nv;});});});}
+// Tar bort låsningar och pass i schemat som ligger i grupper som tas bort.
+function dropCodes(gids){[S.locks,S.schedule].forEach(map=>{if(!map)return;Object.values(map).forEach(row=>{Object.keys(row).forEach(k=>{const c=parseCode(row[k]);if(c&&c.g&&gids.includes(c.g))delete row[k];});});});}
+// Bemanningskurvan för den valda gruppen och vardag eller helg: diagram överst, punkterna under.
+function curveEditor(){
+  const st=S.settings,gs=allGroups();if(!gs.some(g=>g.id===cvG))cvG=gs[0].id;
+  const G=gs.find(g=>g.id===cvG),pts=st.curves[cvG][cvW],d0=hm(st.day.start),d1=hm(st.day.end),other=cvW==='weekday'?'helg':'vardag';
+  return `<nav class="subnav" aria-label="Grupp">${gs.map(g=>`<button data-cvg="${g.id}"${g.id===cvG?' aria-current="true"':''}>${esc(g.unit.name)} ${esc(g.name)}</button>`).join('')}</nav>
+    <nav class="subnav sm" aria-label="Dagar">${[['weekday','Vardag, måndag–fredag'],['weekend','Helg, lördag–söndag']].map(([k,l])=>`<button data-cvw="${k}"${k===cvW?' aria-current="true"':''}>${l}</button>`).join('')}</nav>
+    ${covChart(curveSegs(pts,d0,d1),d0,d1,`Bemanningskurva ${G.unit.name} ${G.name}, ${cvW==='weekday'?'vardag':'helg'}`)}
+    <div class="cvlist">${pts.length?pts.map(([t,n],i)=>`<div class="cvrow"><span class="muted">Från</span><input class="time" data-cvt="${i}" value="${t}" aria-label="Från klockan"><span class="muted">minst</span><input class="cnum" data-cvn="${i}" value="${n}" inputmode="numeric" aria-label="Minst antal personer från ${t}"><span>${n===1?'person':'personer'}</span><span class="muted small cvto">till ${i+1<pts.length?pts[i+1][0]:st.day.end}</span><button data-cvrm="${i}" title="Ta bort tiden" aria-label="Ta bort ${t}">${ICON_X}</button></div>`).join('')
+      :'<div class="cvrow muted">Ingen bemanning. Lägg till en tid.</div>'}</div>
+    <div class="btns"><button class="btn ghost small" id="cvAdd">+ Lägg till tid</button><button class="btn ghost small" id="cvCopyW">Kopiera till ${other}</button>${G.unit.groups.length>1?`<button class="btn ghost small" id="cvCopyU">Använd i alla grupper i ${esc(G.unit.name)}</button>`:''}</div>`;
+}
 function renderRegler(){
   const st=S.settings,col={ok:'ok',warn:'vik',bad:'hard'};
   const ruleList=list=>list.map(x=>`<div class="rule"><span class="rn">${x.n}</span><span class="rt">${esc(x.paper)}</span><span class="rv"><i class="sev ${col[x.st]}"></i>${esc(x.val)}</span><span class="rh">${esc(x.how)}</span></div>`).join('');
-  const lawN=A.dailyV+A.weeklyV,nT=st.types.length;
+  const lawN=A.dailyV+A.weeklyV;
   const staffIn=gid=>S.staff.filter(x=>x.group===gid).length;
   const unitsHtml=st.units.map((u,ui)=>`<div class="ued">
       <div class="frow"><input class="finput nm" data-un="${ui}" value="${esc(u.name)}" aria-label="Avdelningens namn">${st.units.length>1?`<button class="btn ghost small" data-unrm="${ui}">Ta bort avdelningen</button>`:''}</div>
       <div class="gchips">${u.groups.map((g,gi)=>`<span class="gchip"><input data-gn="${ui}.${gi}" value="${esc(g.name)}" aria-label="Gruppens namn"><span class="muted small">${staffIn(g.id)} pers.</span>${u.groups.length>1?`<button data-grm="${ui}.${gi}" title="Ta bort ${esc(g.name)}" aria-label="Ta bort ${esc(g.name)}">${ICON_X}</button>`:''}</span>`).join('')}
         <button class="btn ghost small" data-gadd="${ui}">+ Grupp</button></div></div>`).join('');
-  const typesHtml=st.types.map((t,ti)=>`<div class="ted">
-      <div class="frow"><button class="swatch" data-tcol="${ti}" style="--c:${t.color}" title="Byt färg" aria-label="Byt färg för ${esc(t.name)}"></button><input class="finput nm" data-tn="${ti}" value="${esc(t.name)}" aria-label="Passtypens namn">
-        <label class="chk small"><input type="checkbox" data-tev="${ti}"${t.eve?' checked':''}>Kvällspass</label>
-        ${nT>1?`<button class="btn ghost small" data-trm="${ti}">Ta bort</button>`:''}</div>
-      <div class="vlist">${t.variants.map((x,i)=>`<span class="vtime"><input class="time" data-vt="${ti}.${i}.0" value="${x[0]}" aria-label="${esc(t.name)} ${i+1} börjar">–<input class="time" data-vt="${ti}.${i}.1" value="${x[1]}" aria-label="${esc(t.name)} ${i+1} slutar">${t.variants.length>1?`<button data-vrm="${ti}.${i}" title="Ta bort tiden" aria-label="Ta bort tiden">${ICON_X}</button>`:''}</span>`).join('')}
-        <button class="btn ghost small" data-vadd="${ti}">+ Tid</button></div></div>`).join('');
-  const gcols=`grid-template-columns:minmax(110px,1fr) repeat(${nT},52px)`;
-  const demandHtml=`<div class="stgrid" style="${gcols}"><span></span>${st.types.map(t=>`<span class="hd"><i class="dot kc" style="--c:${t.color}"></i>${esc(t.name)}</span>`).join('')}</div>`+
-    st.units.map(u=>u.groups.map(g=>['weekday','weekend'].map(wk=>`<div class="stgrid" style="${gcols}"><span>${esc(u.name)} ${esc(g.name)}, ${wk==='weekday'?'vardag':'helg'}</span>${st.types.map(t=>`<input type="text" inputmode="numeric" data-dm="${g.id}.${wk}.${t.id}" value="${st.demand[g.id][wk][t.id]}" aria-label="${esc(u.name)} ${esc(g.name)} ${wk==='weekday'?'vardag':'helg'} ${esc(t.name)}">`).join('')}</div>`).join('')).join('')).join('');
-  const R=st.rules,E=R.wkEvery;
+  const R=st.rules,hrs=m=>fmtH(Math.round(m/15)/4);
   const segBtns=(attr,opts,cur)=>`<div class="seg sm">${opts.map(([v,l])=>`<button ${attr}="${v}" aria-pressed="${String(cur)===String(v)}">${l}</button>`).join('')}</div>`;
   const ruleIn=(k,label,unit)=>`<div class="frow"><label for="st-${k}">${label}</label><span class="unit"><input id="st-${k}" class="time" data-rule="${k}" value="${fmtH(R[k])}">${unit||''}</span></div>`;
-  const toggle=(id,on,label)=>`<div class="frow"><span>${label}</span><button class="tgl" id="${id}" role="switch" aria-checked="${on}" aria-label="${label}"><span class="toggle${on?' on':''}"></span></button></div>`;
   $('#tab-regler').innerHTML=`<div class="cols">
+    <div class="stack">
+      <div class="card"><h2>Bemanning</h2>${curveEditor()}
+        <p class="note">Från varje tid ska minst så många arbeta, fram till nästa tid. Motorn lägger passen så att kurvan täcks och lägger personal utöver kurvan helst på dagen. Det spelar ingen roll om de som arbetar börjar tidigt eller sent, bara att de är tillräckligt många.</p></div>
+      <div class="card"><h2>Arbetsdag och pass</h2><div class="form">
+        <div class="frow"><label for="st-d0">Arbetsdagen börjar</label><input id="st-d0" class="time" value="${st.day.start}"></div>
+        <div class="frow"><label for="st-d1">Arbetsdagen slutar</label><input id="st-d1" class="time" value="${st.day.end}"></div>
+        <div class="frow"><label for="st-smin">Kortaste pass, timmar</label><input id="st-smin" class="time" value="${hrs(st.shift.min)}"></div>
+        <div class="frow"><label for="st-smax">Längsta pass, timmar</label><input id="st-smax" class="time" value="${hrs(st.shift.max)}"></div></div>
+        <p class="note">Motorn väljer varje pass start och slut inom arbetsdagen, på hela och halva timmar och kurvans egna tider. Passets längd räknas med rast: pass över 5 timmar har 30 minuters rast och pass över 10 timmar en timme.</p></div>
+    </div>
     <div class="stack">
       <div class="card"><h2>Verksamhet</h2><div class="form">
         <div class="frow"><label for="st-org">Namn</label><input id="st-org" class="finput wide" value="${esc(st.orgName)}" placeholder="Till exempel Solgårdens äldreboende" autocomplete="off"></div>
         <div class="frow"><span>Färg</span><span class="swatches">${ACCENTS.map(([c,n])=>`<button class="swatch${st.accent===c?' on':''}" data-accent="${c}" style="--c:${c}" title="${n}" aria-label="${n}" aria-pressed="${st.accent===c}"></button>`).join('')}</span></div></div>
         <p class="note">Namnet visas i toppfältet och i Excel-filen.</p></div>
       <div class="card"><h2>Grundschema</h2><div class="form">
-        <div class="frow"><span>Längd</span>${segBtns('data-weeks',weekOptions(E).map(w=>[w,w+' veckor']),st.weeks)}</div>
-        <div class="frow"><label for="st-fullTime">Heltid, timmar per vecka</label><input id="st-fullTime" type="text" inputmode="decimal" value="${String(st.fullTime).replace('.',',')}"></div>
-        <div class="frow"><label for="st-break">Rast, minuter</label><input id="st-break" type="text" inputmode="numeric" value="${st.breakMin}"></div></div>
-        <p class="note">Grundschemat upprepas. ${st.weeks} veckor med ${EVERY[E]} helg ger ${st.weeks/E} ${st.weeks/E===1?'arbetshelg':'arbetshelger'} per person. Längden går jämnt upp med helgrytmen. Rasten dras på pass längre än 5 timmar, enligt arbetstidslagen.</p></div>
+        <div class="frow"><span>Längd</span>${segBtns('data-weeks',WEEK_OPTIONS.map(w=>[w,w+' veckor']),st.weeks)}</div>
+        <div class="frow"><label for="st-fullTime">Heltid, timmar per vecka</label><input id="st-fullTime" type="text" inputmode="decimal" value="${String(st.fullTime).replace('.',',')}"></div></div>
+        <p class="note">Grundschemat upprepas. Timmarna ska stämma för varje fyraveckorsperiod: heltid ${fmtH(st.fullTime)} h × 4 = ${fmtDur(st.fullTime*240)} h. Alla arbetar varannan helg, udda eller jämna veckor.</p></div>
       <div class="card"><h2>Avdelningar och grupper</h2>${unitsHtml}<div><button class="btn ghost small" id="uadd">+ Lägg till avdelning</button></div>
         <div class="form"><div class="frow wrap"><span>Låna personal mellan grupper</span>${segBtns('data-lend',Object.entries(LEND_LABEL),R.lend)}</div></div>
         <p class="note">Personalen har en hemgrupp. ${{aldrig:'Ingen lånas till en annan grupp.',behov:'Motorn lånar ut personal till en annan grupp i samma avdelning bara när bemanningen kräver det.',fritt:'Motorn får lägga personal i alla grupper i avdelningen.'}[R.lend]} Mellan avdelningar flyttar bara du, i dagmenyn.</p></div>
-      <div class="card"><h2>Passtyper och tider</h2>${typesHtml}<div><button class="btn ghost small" id="tadd">+ Lägg till passtyp</button></div>
-        <p class="note">Varje passtyp har de tider som får användas, och motorn väljer bland dem så att alla får sina timmar. Markera kvällspass, så fördelas kvällarna rättvist och efter önskemål om dag eller kväll.${R.night?' Ett pass som slutar före sin starttid går över midnatt, till exempel 21:30–07:00.':''}</p></div>
-      <div class="card"><h2>Bemanning per grupp</h2><div class="form scrollx">${demandHtml}</div>
-        <p class="note">Antal personer per dag och passtyp i varje grupp.</p></div>
-      <div class="card"><h2>Vila och nattarbete</h2><div class="form">
-        ${ruleIn('dailyRest','Dygnsvila, timmar')}${ruleIn('weeklyRest','Veckovila, timmar')}
-        ${toggle('st-night',R.night,'Tillåt nattpass')}</div>
-        <p class="note">Arbetstidslagen säger minst ${LAW_DAILY} timmars dygnsvila och ${LAW_WEEKLY} timmars veckovila. Kortare vila kräver stöd i ert kollektivavtal.${R.dailyRest<LAW_DAILY||R.weeklyRest<LAW_WEEKLY?' <b>Ni har valt kortare vila än lagen.</b>':''} ${R.night?'Nattpass är tillåtna och får gå över midnatt.':'Utan nattpass ligger alla pass mellan 05 och 24, så att vilan omfattar natten.'}</p></div>
-      <div class="card"><h2>Helger och återhämtning</h2><div class="form">
-        <div class="frow wrap"><span>Varje person arbetar</span>${segBtns('data-every',[[2,'Varannan helg'],[3,'Var tredje'],[4,'Var fjärde']],E)}</div>
-        <div class="frow wrap"><span>Prioritera</span>${segBtns('data-balance',Object.entries(BALANCE_LABEL),R.balance)}</div>
-        ${ruleIn('maxRow','Högst arbetsdagar i rad')}${ruleIn('maxWeekDays','Högst arbetsdagar per vecka')}${ruleIn('maxWeekPct','Tyngsta vecka, högst över snittet','<span class="muted">%</span>')}
-        ${toggle('st-fill',R.fillWeekend,'Fyll även helger med ordinarie personal')}
-      </div><p class="note">Personalens timmar och antalet pass är fasta. Färre långa veckor för heltidare betyder längre pass, och då räcker timmarna till färre helgpass. Balanserat är en mittpunkt.</p></div>
+      <div class="card"><h2>Arbetsdagar och vila</h2><div class="form">
+        ${ruleIn('maxRow','Högst arbetsdagar i rad')}${ruleIn('maxWeekDays','Högst arbetsdagar per vecka')}</div>
+        <p class="note">Fler än fem dagar i en vecka undviks men är tillåtet upp till gränsen. Dygnsvila ${DAILY_REST} timmar och veckovila ${WEEKLY_REST} timmar följer arbetstidslagen och går inte att ändra.</p></div>
       <div class="card"><h2>Lägg om hela schemat</h2><p class="note">Lägger ett nytt schema från början. Dagar du har ändrat eller låst står kvar. Det går att ångra.</p><div><button class="btn" id="btnNew"${busy?' disabled':''}>Lägg om schemat</button></div></div>
       <div class="card"><h2>Säkerhetskopia</h2><p class="note">Allt sparas bara i den här webbläsaren. Spara en säkerhetskopia till fil med jämna mellanrum, och för att flytta schemat till en annan dator eller webbläsare.</p>
         <div class="btns"><button class="btn" id="bkSave">Spara till fil</button><button class="btn ghost" id="bkOpen">Öppna fil</button></div></div>
@@ -1567,19 +1573,19 @@ function renderRegler(){
     </div></div>
     <details class="rules"${rulesOpen?' open':''}><summary>Visa hur reglerna följs <span>${lawN?`${lawN} brister mot arbetstidslagen`:'Arbetstidslagen följs'} ${CHEV}</span></summary>
     <div class="cols">
-      <div class="card"><h2>Arbetstidslagen</h2><div>${ruleList(A.law)}</div><p class="note">Lagen går alltid före bemanningen. Systemet lämnar hellre ett pass tomt än bryter mot vilan.</p></div>
+      <div class="card"><h2>Arbetstidslagen</h2><div>${ruleList(A.law)}</div><p class="note">Lagen går alltid före bemanningen. Systemet lämnar hellre en lucka i kurvan än bryter mot vilan.</p></div>
       <div class="card"><h2>Återhämtning</h2><div>${ruleList(A.rec)}</div></div>
       <div class="card"><h2>Era regler</h2><div>${ruleList(A.rules)}</div></div>
     </div></details>`;
   $('#tab-regler details').addEventListener('toggle',e=>{rulesOpen=e.target.open;});
 }
-const RULE_LIMITS={dailyRest:[8,13,.5],weeklyRest:[24,60,1],maxRow:[3,7,1],maxWeekDays:[4,7,1],maxWeekPct:[5,100,1]};
+const RULE_LIMITS={maxRow:[3,7,1],maxWeekDays:[4,7,1]};
 function nextId(prefix,list){let i=1;while(list.includes(prefix+i))i++;return prefix+i;}
-function allIds(){const st=S.settings;return [...st.units.map(u=>u.id),...st.units.flatMap(u=>u.groups.map(g=>g.id)),...st.types.map(t=>t.id)];}
+function allIds(){const st=S.settings;return [...st.units.map(u=>u.id),...st.units.flatMap(u=>u.groups.map(g=>g.id))];}
 
 /* ---------- välkomstsida och guide ----------
    Första gången visas en välkomstsida: prova med demodata eller lägg upp verksamheten. Guiden frågar efter namn,
-   avdelningar med grupper, passtyper och personal. Allt annat går att ändra under Inställningar efteråt. */
+   avdelningar med grupper och personal. Arbetsdag, bemanning och regler ändras under Inställningar efteråt. */
 function renderWelcome(){
   const el=$('#tab-welcome');
   if(welcome!=='guide'){
@@ -1588,7 +1594,7 @@ function renderWelcome(){
       <p class="lead">Schemaplaneraren lägger ett grundschema för vård och omsorg. Schemat följer arbetstidslagen, ger alla exakt sina timmar och samlar ledigheten i sammanhängande block.</p>
       <ul class="facts"><li>Allt sparas bara i den här webbläsaren. Inget skickas till någon server.</li>
         <li>Spara en säkerhetskopia till fil under Inställningar, så kan du flytta schemat till en annan dator.</li>
-        <li>Avdelningar, grupper, passtyper, bemanning och regler ställer du in själv.</li></ul>
+        <li>Avdelningar, grupper, arbetsdag och bemanning ställer du in själv.</li></ul>
       <div class="btns"><button class="btn primary" id="wGuide">Lägg upp er verksamhet</button><button class="btn" id="wDemo">Prova med demodata</button><button class="btn ghost" id="wOpen">Öppna säkerhetskopia</button></div>
     </div></div>`;return;}
   const g=guide;
@@ -1599,8 +1605,7 @@ function renderWelcome(){
       <p class="note">En rad per avdelning. Skriv avdelningens grupper med kommatecken emellan. Personalen har en hemgrupp, och bemanningen anges per grupp.</p>
       ${g.units.map((u,i)=>`<div class="gu"><input data-gu="${i}" data-f="name" value="${esc(u.name)}" placeholder="Avdelning" aria-label="Avdelning ${i+1}"><input data-gu="${i}" data-f="groups" value="${esc(u.groups)}" placeholder="Grupp A, Grupp B" aria-label="Grupper i avdelning ${i+1}">${g.units.length>1?`<button class="btn ghost small" data-gurm="${i}">Ta bort</button>`:'<span></span>'}</div>`).join('')}
       <div><button class="btn ghost small" id="guAdd">+ Lägg till avdelning</button></div></div>
-    <div class="card"><h2>Passtyper</h2><p class="note">Välj en mall att börja med. Tider, färger och fler passtyper ändrar du under Inställningar.</p>
-      ${Object.entries(TEMPLATES).map(([k,t])=>`<label class="tpl"><input type="radio" name="gTpl" value="${k}"${g.template===k?' checked':''}><span><b>${esc(t.label)}</b><small>${t.types.map(x=>`${esc(x.name)} ${x.variants[0][0]}–${x.variants[0][1]}`).join(' · ')}</small></span></label>`).join('')}</div>
+    <div class="card"><h2>Arbetsdag och bemanning</h2><p class="note">Schemat börjar med arbetsdagen 06:45–21:30 och en bemanningskurva för vardag och helg i varje grupp. Båda ändrar du under Inställningar, där kurvan visas som ett diagram.</p></div>
     <div class="card"><h2>Personal</h2><p class="note">Kopiera från Excel och klistra in: namn, tjänstgöringsgrad och grupp, en person per rad. Utan grupp hamnar personen i den första gruppen. Du kan också lägga till personal senare.</p>
       <textarea class="paste" id="gStaff" placeholder="Anna Larsson&#9;100&#9;Grupp A&#10;Bertil Karlsson&#9;75&#9;Grupp B" aria-label="Personal">${esc(g.staff)}</textarea>
       <p class="small muted" id="gStaffInfo">${guideStaffInfo()}</p></div>
@@ -1610,19 +1615,19 @@ function renderWelcome(){
 // Avdelningar och grupper ur guiden, med id:n som motorn kan använda.
 function guideUnits(){let gn=0;
   return guide.units.map((u,i)=>({id:'u'+(i+1),name:u.name.replace(/\s+/g,' ').trim().slice(0,30)||'Avdelning '+(i+1),
-    groups:u.groups.split(/[,;]/).map(x=>x.replace(/\s+/g,' ').trim().slice(0,12)).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).slice(0,8).map(x=>({id:'g'+(++gn),name:x}))}))
+    groups:u.groups.split(/[,;]/).map(x=>x.replace(/\s+/g,' ').trim().slice(0,20)).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).slice(0,8).map(x=>({id:'g'+(++gn),name:x}))}))
     .map(u=>u.groups.length?u:Object.assign(u,{groups:[{id:'g'+(++gn),name:'Grupp 1'}]})).slice(0,8);}
 function guideStaffInfo(){const units=guideUnits(),groups=units.flatMap(u=>u.groups.map(g=>({id:g.id,name:g.name,unit:u})));
   const rows=parsePaste(guide.staff,groups);if(!rows.length)return 'Ingen personal ännu.';
   const per=groups.map(g=>`${g.name} ${rows.filter(r=>(r.gid||groups[0].id)===g.id).length}`).join(', ');
   return `${rows.length} ${rows.length===1?'person':'personer'}: ${per}.`;}
 function openGuide(){
-  guide={name:S.example?'':S.settings.orgName,units:[{name:'Avdelning 1',groups:'Grupp A, Grupp B'}],template:'standard',staff:''};
+  guide={name:S.example?'':S.settings.orgName,units:[{name:'Avdelning 1',groups:'Grupp A, Grupp B'}],staff:''};
   welcome='guide';tab='welcome';closePop();closeSheet();renderAll();window.scrollTo({top:0});
   setTimeout(()=>{const n=$('#gName');n&&n.focus();},50);}
 function createFromGuide(){
   const units=guideUnits(),groups=units.flatMap(u=>u.groups.map(g=>({id:g.id,name:g.name,unit:u})));
-  const ns=blank(guide.name.replace(/\s+/g,' ').trim().slice(0,60),units,guide.template),old=S;
+  const ns=blank(guide.name.replace(/\s+/g,' ').trim().slice(0,60),units),old=S;
   S=ns;parsePaste(guide.staff,groups).forEach(r=>S.staff.push(newPerson(r.gid||groups[0].id,r.name,r.pct)));S=old;
   loadState(normalize(ns),ns.staff.length?'Verksamheten är upplagd. Schemat läggs nu.':'Verksamheten är upplagd. Lägg till personal i varje grupp.');
 }
@@ -1643,11 +1648,11 @@ function buildWorkbook(X){
     for(let r=3;r<aoa.length;r++){const c=ws[X.utils.encode_cell({r,c:2})];if(c&&typeof c.v==='number')c.z='0%';}
     ws['!cols']=[{wch:24},{wch:16},{wch:12},...Array(7).fill({wch:15}),{wch:9}];
     X.utils.book_append_sheet(wb,ws,`Vecka ${w+1}`);}
-  const sum=[['Summering för hela perioden'],[],['Namn','Grupp','Tjänstgöring','Timmar','Ska ha','Pass','Kvällar','Lediga dagar','Pass i annan grupp','Ledighet i block']];
-  m.G.forEach((G,g)=>staffIdx(g).forEach(p=>{const x=m.staff[p],s=A.persons[p];sum.push([x.name,gFull(g),x.pct/100,hNum(s.mins),hNum(s.target),s.n,s.ev,s.free,s.away,Math.round(s.blockPct*100)/100]);}));
+  const sum=[['Summering för hela perioden'],[],['Namn','Grupp','Tjänstgöring','Timmar','Ska ha','Pass','Kvällar','Helgpass','Lediga dagar','Pass i annan grupp','Ledighet i block']];
+  m.G.forEach((G,g)=>staffIdx(g).forEach(p=>{const x=m.staff[p],s=A.persons[p];sum.push([x.name,gFull(g),x.pct/100,hNum(s.mins),hNum(s.target),s.n,s.ev,s.we,s.free,s.away,Math.round(s.blockPct*100)/100]);}));
   const ws2=X.utils.aoa_to_sheet(sum);
-  for(let r=3;r<sum.length;r++){[2,9].forEach(c=>{const cl=ws2[X.utils.encode_cell({r,c})];if(cl&&typeof cl.v==='number')cl.z='0%';});}
-  ws2['!cols']=[{wch:24},{wch:16},{wch:12},{wch:9},{wch:9},{wch:7},{wch:8},{wch:12},{wch:16},{wch:15}];
+  for(let r=3;r<sum.length;r++){[2,10].forEach(c=>{const cl=ws2[X.utils.encode_cell({r,c})];if(cl&&typeof cl.v==='number')cl.z='0%';});}
+  ws2['!cols']=[{wch:24},{wch:16},{wch:12},{wch:9},{wch:9},{wch:7},{wch:8},{wch:9},{wch:12},{wch:16},{wch:15}];
   X.utils.book_append_sheet(wb,ws2,'Summering');
   const rr=[['Regler och lag'],[],['Krav','Resultat']];A.law.concat(A.rules,A.rec).forEach(r=>rr.push([r.paper,r.val]));
   const ws3=X.utils.aoa_to_sheet(rr);ws3['!cols']=[{wch:60},{wch:60}];X.utils.book_append_sheet(wb,ws3,'Regler');
@@ -1720,7 +1725,7 @@ $('#sheet').addEventListener('click',e=>{
   const db=e.target.closest('[data-del]');if(db){const id=db.dataset.del;
     if(delArm!==id){delArm=id;renderAll();return;}
     delArm=null;const x=S.staff.find(y=>y.id===id);closeSheet();
-    edit(()=>{S.staff=S.staff.filter(y=>y.id!==id);delete S.locks[id];delete S.wishes[id];if(S.schedule)delete S.schedule[id];});
+    edit(()=>{S.staff=S.staff.filter(y=>y.id!==id);delete S.locks[id];if(S.schedule)delete S.schedule[id];});
     toast(`${x?x.name:'Personen'} är borttagen`,true);return;}
   if(e.target.closest('#pasteReplace'))applyPaste(true);
   if(e.target.closest('#pasteAdd'))applyPaste(false);
@@ -1737,9 +1742,7 @@ $('#sheet').addEventListener('change',e=>{
     snapshot();x.name=v;el.value=v;S.example=false;persist();renderBanner();renderSchema();$('#btnUndo').disabled=false;
     $('#shName').textContent=v;$('#shAv').textContent=initials(v);return;}
   if(k==='pct')edit(()=>{x.pct=Math.max(5,Math.min(100,Math.round(num(el.value,x.pct))));});
-  if(k==='group')edit(()=>{x.group=el.value;x.groups=null;});
-  if(k==='wg')edit(()=>{x.wg=WG.includes(el.value)?el.value:'A';});
-  if(k==='pref')edit(()=>{x.pref=el.value==='dag'||el.value==='kvall'?el.value:'';});
+  if(k==='group')edit(()=>{x.group=el.value;});
   if(k==='earliest'||k==='latest'){const raw=el.value.trim();const t=raw?parseTime(raw):null;
     if(raw&&!t){toast('Skriv tiden som till exempel 07:00, eller lämna tomt.');el.value=x[k]||'';return;}
     const e0=k==='earliest'?t:x.earliest,l0=k==='latest'?t:x.latest;
@@ -1748,89 +1751,72 @@ $('#sheet').addEventListener('change',e=>{
   if(k==='maxLen'){const raw=el.value.trim();const v=raw?num(raw,NaN):null;
     if(raw&&(!isFinite(v)||v<1||v>12)){toast('Skriv antal timmar, till exempel 6, eller lämna tomt.');el.value=x.maxLen?String(x.maxLen/60).replace('.',','):'';return;}
     edit(()=>{x.maxLen=v?Math.round(v*4)*15:null;});}
-  if(k==='type'){const boxes=[...document.querySelectorAll('#sheet input[data-k="type"]')],on=boxes.filter(b=>b.checked).map(b=>b.dataset.t);
-    if(!on.length){el.checked=true;toast('Personen behöver minst en passtyp.');return;}
-    edit(()=>{x.types=on.length===boxes.length?null:on;});}
-  if(k==='grp'){const boxes=[...document.querySelectorAll('#sheet input[data-k="grp"]')],on=boxes.filter(b=>b.checked).map(b=>b.dataset.g);
-    edit(()=>{x.groups=on.length===boxes.length?null:on;});}
 });
 $('#tab-regler').addEventListener('click',e=>{
   const st=S.settings,t=e.target;
   if(t.closest('#btnNew')){if(!M.P){toast('Lägg till personal först.');setTab('schema');return;}setTab('schema');solveFresh(true);return;}
-  if(t.closest('#st-fill')){edit(()=>{st.rules.fillWeekend=!st.rules.fillWeekend;});return;}
-  if(t.closest('#st-night')){
-    // nattpass av: tider som går över midnatt eller börjar före 05 måste bort först, annars försvinner de i tysthet
-    if(st.rules.night){const bad=st.types.flatMap(tp=>tp.variants.filter(x=>!okVariant(x[0],x[1],false)).map(x=>`${tp.name} ${x[0]}–${x[1]}`));
-      if(bad.length){toast(`Ta först bort nattiderna: ${bad.slice(0,3).join(', ')}${bad.length>3?' …':''}`);return;}}
-    edit(()=>{st.rules.night=!st.rules.night;});return;}
   const acc=t.closest('[data-accent]');if(acc){edit(()=>{st.accent=acc.dataset.accent;},{stale:false});return;}
   const lend=t.closest('[data-lend]');if(lend){if(lend.dataset.lend!==st.rules.lend)edit(()=>{st.rules.lend=lend.dataset.lend;});return;}
-  const ev=t.closest('[data-every]');if(ev){const E=+ev.dataset.every;if(E===st.rules.wkEvery)return;
-    // personalen fördelas om på de nya helglagen, jämnt inom varje grupp
-    edit(()=>{st.rules.wkEvery=E;const per={};S.staff.forEach(x=>{const i=per[x.group]=(per[x.group]||0);x.wg=WG[i%E];per[x.group]++;});});
-    toast(`Varje person arbetar ${EVERY[E]} helg. Personalen är fördelad på ${E} helglag och grundschemat är ${S.settings.weeks} veckor.`);return;}
   if(t.closest('#bkSave')){saveBackup();return;}
   if(t.closest('#bkOpen')){openBackup();return;}
   if(t.closest('#rsDemo')){loadState(defaults(),'Demodata är inlagd');return;}
   if(t.closest('#rsAll')){if(!resetArm){resetArm=true;renderRegler();return;}resetAll();return;}
-  const bal=t.closest('[data-balance]');if(bal){if(bal.dataset.balance!==st.rules.balance)edit(()=>{st.rules.balance=bal.dataset.balance;});return;}
   const b=t.closest('[data-weeks]');if(b){const w=+b.dataset.weeks;
     if(w!==st.weeks){edit(()=>{st.weeks=w;});toast(`Grundschemat är ${w} veckor. Uppdatera schemat för att lägga om det.`);}return;}
+  // bemanningskurvan: vilken som visas, och ändringar i den
+  const cg=t.closest('[data-cvg]');if(cg){cvG=cg.dataset.cvg;renderRegler();return;}
+  const cw=t.closest('[data-cvw]');if(cw){cvW=cw.dataset.cvw;renderRegler();return;}
+  const cr=t.closest('[data-cvrm]');if(cr){edit(()=>{st.curves[cvG][cvW].splice(+cr.dataset.cvrm,1);});return;}
+  if(t.closest('#cvAdd')){const pts=st.curves[cvG][cvW],segs=curveSegs(pts,hm(st.day.start),hm(st.day.end));
+    // ny tid mitt i det längsta intervallet, på en halvtimme, med samma antal som där
+    const lg=segs.reduce((a,x)=>x.b-x.a>a.b-a.a?x:a,segs[0]),m0=Math.round((lg.a+lg.b)/60)*30;
+    if(pts.some(x=>hm(x[0])===m0)||lg.b-lg.a<60){toast('Det finns ingen plats för en ny tid. Ändra en befintlig.');return;}
+    edit(()=>{pts.push([fmtHM(m0),lg.need]);});return;}
+  if(t.closest('#cvCopyW')){const to=cvW==='weekday'?'weekend':'weekday';edit(()=>{st.curves[cvG][to]=clone(st.curves[cvG][cvW]);});toast(`Kurvan är kopierad till ${to==='weekday'?'vardag':'helg'}`,true);return;}
+  if(t.closest('#cvCopyU')){const u=st.units.find(u=>u.groups.some(g=>g.id===cvG));
+    edit(()=>{u.groups.forEach(g=>{if(g.id!==cvG)st.curves[g.id][cvW]=clone(st.curves[cvG][cvW]);});});toast(`Kurvan gäller nu alla grupper i ${u.name}`,true);return;}
   if(t.closest('#uadd')){const ids=allIds(),uid=nextId('u',ids),gid=nextId('g',ids);
-    edit(()=>{st.units.push({id:uid,name:'Ny avdelning',groups:[{id:gid,name:'Grupp 1'}]});st.demand[gid]={weekday:{},weekend:{}};});return;}
+    edit(()=>{st.units.push({id:uid,name:'Ny avdelning',groups:[{id:gid,name:'Grupp 1'}]});st.curves[gid]=clone(DEFAULT_CURVE);});return;}
   const gadd=t.closest('[data-gadd]');if(gadd){const u=st.units[+gadd.dataset.gadd],gid=nextId('g',allIds());
-    edit(()=>{u.groups.push({id:gid,name:'Grupp '+(u.groups.length+1)});st.demand[gid]=clone(st.demand[u.groups[0].id]||{weekday:{},weekend:{}});});return;}
+    edit(()=>{u.groups.push({id:gid,name:'Grupp '+(u.groups.length+1)});st.curves[gid]=clone(st.curves[u.groups[0].id]||DEFAULT_CURVE);});return;}
   const urm=t.closest('[data-unrm]');if(urm){const u=st.units[+urm.dataset.unrm],ids=u.groups.map(g=>g.id);
     if(S.staff.some(x=>ids.includes(x.group))){toast(`Flytta eller ta bort personalen i ${u.name} först.`);return;}
-    edit(()=>{st.units.splice(+urm.dataset.unrm,1);ids.forEach(g=>delete st.demand[g]);remapCodes(c=>c.g&&ids.includes(c.g)?null:`${c.t}.${c.i}@${c.g||''}`.replace(/@$/,''));});
+    edit(()=>{st.units.splice(+urm.dataset.unrm,1);ids.forEach(g=>delete st.curves[g]);dropCodes(ids);});
     toast(`${u.name} är borttagen`,true);return;}
   const grm=t.closest('[data-grm]');if(grm){const [ui,gi]=grm.dataset.grm.split('.').map(Number),u=st.units[ui],g=u.groups[gi],to=u.groups.find(x=>x.id!==g.id);
     const n=S.staff.filter(x=>x.group===g.id).length;
-    edit(()=>{S.staff.forEach(x=>{if(x.group===g.id){x.group=to.id;x.groups=null;}});u.groups.splice(gi,1);delete st.demand[g.id];
-      remapCodes(c=>c.g===g.id?null:`${c.t}.${c.i}${c.g?'@'+c.g:''}`);});
+    edit(()=>{S.staff.forEach(x=>{if(x.group===g.id)x.group=to.id;});u.groups.splice(gi,1);delete st.curves[g.id];dropCodes([g.id]);});
     toast(`${g.name} är borttagen${n?`. ${n} personer flyttades till ${to.name}`:''}`,true);return;}
-  if(t.closest('#tadd')){const id=nextId('t',allIds());
-    edit(()=>{st.types.push({id,name:'Nytt pass',color:PALETTE[st.types.length%PALETTE.length],eve:false,variants:[['08:00','16:00']]});});return;}
-  const trm=t.closest('[data-trm]');if(trm){const ti=+trm.dataset.trm,tp=st.types[ti];
-    edit(()=>{st.types.splice(ti,1);remapCodes(c=>c.t===tp.id?null:`${c.t}.${c.i}${c.g?'@'+c.g:''}`);S.staff.forEach(x=>{if(x.types){x.types=x.types.filter(y=>y!==tp.id);if(!x.types.length)x.types=null;}});});
-    toast(`${tp.name} är borttagen`,true);return;}
-  const tcol=t.closest('[data-tcol]');if(tcol){const tp=st.types[+tcol.dataset.tcol],i=PALETTE.indexOf(tp.color);
-    edit(()=>{tp.color=PALETTE[(i+1)%PALETTE.length];},{stale:false});return;}
-  const vadd=t.closest('[data-vadd]');if(vadd){const tp=st.types[+vadd.dataset.vadd],last=tp.variants[tp.variants.length-1];
-    if(tp.variants.length>=12){toast('Högst 12 tider per passtyp.');return;}
-    edit(()=>{tp.variants.push(last.slice());});return;}
-  const vrm=t.closest('[data-vrm]');if(vrm){const [ti,i]=vrm.dataset.vrm.split('.').map(Number),tp=st.types[ti];
-    edit(()=>{tp.variants.splice(i,1);remapCodes(c=>c.t!==tp.id?`${c.t}.${c.i}${c.g?'@'+c.g:''}`:c.i===i?null:`${c.t}.${c.i>i?c.i-1:c.i}${c.g?'@'+c.g:''}`);});return;}
 });
 $('#tab-regler').addEventListener('change',e=>{
   const el=e.target,st=S.settings;
   if(el.id==='st-fullTime'){const v=num(el.value,NaN);if(!isFinite(v)||v<20||v>45){toast('Heltid ska vara mellan 20 och 45 timmar per vecka.');el.value=String(st.fullTime).replace('.',',');return;}
     edit(()=>{st.fullTime=Math.round(v*4)/4;});return;}
-  if(el.id==='st-break'){const v=Math.round(num(el.value,NaN));if(!isFinite(v)||v<0||v>60){toast('Skriv rasten i minuter, mellan 0 och 60.');el.value=st.breakMin;return;}
-    edit(()=>{st.breakMin=v;});return;}
   if(el.id==='st-org'){const v=el.value.replace(/\s+/g,' ').trim().slice(0,60);if(v===st.orgName)return;edit(()=>{st.orgName=v;},{stale:false});return;}
+  if(el.id==='st-d0'||el.id==='st-d1'){const k=el.id==='st-d0'?'start':'end',tm=parseTime(el.value);
+    const nx=Object.assign({},st.day,{[k]:tm});
+    if(!tm||(k==='start'&&tm==='24:00')){toast('Skriv tiden som till exempel 06:45.');el.value=st.day[k];return;}
+    if(hm(nx.start)<300){toast('Arbetsdagen kan börja tidigast 05:00. Nattpass finns inte.');el.value=st.day[k];return;}
+    if(hm(nx.end)-hm(nx.start)<180){toast('Arbetsdagen måste vara minst tre timmar.');el.value=st.day[k];return;}
+    edit(()=>{st.day[k]=tm;});return;}
+  if(el.id==='st-smin'||el.id==='st-smax'){const k=el.id==='st-smin'?'min':'max',v=num(el.value,NaN);
+    if(!isFinite(v)||v<2||v>12){toast('Skriv antal timmar mellan 2 och 12, till exempel 9,5.');el.value=fmtH(st.shift[k]/60);return;}
+    const mins=Math.round(v*4)*15;if(k==='min'&&mins>st.shift.max||k==='max'&&mins<st.shift.min){toast('Kortaste pass kan inte vara längre än längsta pass.');el.value=fmtH(st.shift[k]/60);return;}
+    edit(()=>{st.shift[k]=mins;});return;}
+  if(el.dataset.cvt!==undefined){const i=+el.dataset.cvt,pts=st.curves[cvG][cvW],tm=parseTime(el.value),m0=tm?hm(tm):NaN;
+    if(!tm||m0<hm(st.day.start)||m0>=hm(st.day.end)){toast(`Skriv en tid mellan ${st.day.start} och ${st.day.end}.`);el.value=pts[i][0];return;}
+    if(pts.some((x,j)=>j!==i&&hm(x[0])===m0)){toast(`${tm} finns redan i kurvan.`);el.value=pts[i][0];return;}
+    edit(()=>{pts[i][0]=tm;});return;}
+  if(el.dataset.cvn!==undefined){const i=+el.dataset.cvn,pts=st.curves[cvG][cvW],v=Math.round(num(el.value,NaN));
+    if(!isFinite(v)||v<0||v>30){toast('Skriv ett antal mellan 0 och 30.');el.value=pts[i][1];return;}
+    edit(()=>{pts[i][1]=v;});return;}
   if(el.dataset.rule){const k=el.dataset.rule,[lo,hi,step]=RULE_LIMITS[k],raw=num(el.value,NaN),v=Math.round(raw/step)*step;
     if(!isFinite(raw)||v<lo||v>hi){toast(`Skriv ett tal mellan ${fmtH(lo)} och ${fmtH(hi)}.`);el.value=fmtH(st.rules[k]);return;}
-    edit(()=>{st.rules[k]=v;});
-    if((k==='dailyRest'&&v<LAW_DAILY)||(k==='weeklyRest'&&v<LAW_WEEKLY))toast('Kortare vila än arbetstidslagen kräver stöd i ert kollektivavtal.');return;}
+    edit(()=>{st.rules[k]=v;});return;}
   if(el.dataset.un!==undefined){const u=st.units[+el.dataset.un],v=el.value.replace(/\s+/g,' ').trim().slice(0,30);if(!v){el.value=u.name;return;}
     edit(()=>{u.name=v;},{stale:false});return;}
-  if(el.dataset.gn){const [ui,gi]=el.dataset.gn.split('.').map(Number),g=st.units[ui].groups[gi],v=el.value.replace(/\s+/g,' ').trim().slice(0,12);if(!v){el.value=g.name;return;}
+  if(el.dataset.gn){const [ui,gi]=el.dataset.gn.split('.').map(Number),g=st.units[ui].groups[gi],v=el.value.replace(/\s+/g,' ').trim().slice(0,20);if(!v){el.value=g.name;return;}
     edit(()=>{g.name=v;},{stale:false});return;}
-  if(el.dataset.tn!==undefined){const tp=st.types[+el.dataset.tn],v=el.value.replace(/\s+/g,' ').trim().slice(0,20);if(!v){el.value=tp.name;return;}
-    edit(()=>{tp.name=v;},{stale:false});return;}
-  if(el.dataset.tev!==undefined){const tp=st.types[+el.dataset.tev];edit(()=>{tp.eve=el.checked;});return;}
-  if(el.dataset.dm){const [g,wk,tid]=el.dataset.dm.split('.');const v=Math.round(num(el.value,NaN));
-    if(!isFinite(v)||v<0||v>20){toast('Skriv ett antal mellan 0 och 20.');el.value=st.demand[g][wk][tid];return;}
-    edit(()=>{st.demand[g][wk][tid]=v;});return;}
-  if(el.dataset.vt){const [ti,i,j]=el.dataset.vt.split('.').map(Number),tp=st.types[ti],cur=tp.variants[i];const tm=parseTime(el.value);
-    if(!tm){toast('Skriv tiden som till exempel 06:45.');el.value=cur[j];return;}
-    const nx=cur.slice();nx[j]=tm;
-    if(!st.rules.night){
-      if(hm(nx[1])<=hm(nx[0])){toast('Passet måste sluta efter att det börjar. Nattpass slås på under Vila och nattarbete.');el.value=cur[j];return;}
-      if(hm(nx[0])<300){toast('Utan nattpass får inga pass börja före 05:00. Nattpass slås på under Vila och nattarbete.');el.value=cur[j];return;}}
-    else if(!okVariant(nx[0],nx[1],true)){toast('Ett pass kan vara högst 16 timmar.');el.value=cur[j];return;}
-    edit(()=>{tp.variants[i]=nx;});}
 });
 $('#tab-welcome').addEventListener('click',e=>{const t=e.target;
   if(t.closest('#wDemo')){loadState(defaults());return;}
@@ -1843,10 +1829,8 @@ $('#tab-welcome').addEventListener('click',e=>{const t=e.target;
 $('#tab-welcome').addEventListener('input',e=>{const el=e.target;if(!guide)return;
   if(el.id==='gName')guide.name=el.value;
   if(el.dataset.gu!==undefined)guide.units[+el.dataset.gu][el.dataset.f]=el.value;
-  if(el.name==='gTpl')guide.template=el.value;
   if(el.id==='gStaff')guide.staff=el.value;
   if(el.id==='gStaff'||el.dataset.f==='groups'){const i=$('#gStaffInfo');if(i)i.textContent=guideStaffInfo();}});
-$('#tab-welcome').addEventListener('change',e=>{if(guide&&e.target.name==='gTpl')guide.template=e.target.value;});
 $('#scrim').onclick=closeSheet;
 document.addEventListener('click',e=>{if(!$('#pop').hidden&&!e.target.closest('#pop'))closePop();
   if(resetArm&&!e.target.closest('#rsAll')){resetArm=false;if(tab==='regler')renderRegler();}

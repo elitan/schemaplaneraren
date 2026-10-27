@@ -63,7 +63,8 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
     await step('Klick på ett pass öppnar dagmenyn, och ett nytt pass sparas och anpassas',async()=>{
       await js('document.querySelector(".wt .cell.kc").click()');
       expect(await js('!document.getElementById("pop").hidden&&document.getElementById("pop").innerText.includes("Grupp")'),'dagmenyn öppnades inte');
-      await js('[...document.querySelectorAll("#pop .vbtn[data-act=set]")].find(b=>!b.classList.contains("on")).click()');
+      // välj en annan sluttid och spara
+      await js('{const e=document.getElementById("popEn");e.selectedIndex=e.selectedIndex>0?e.selectedIndex-1:e.selectedIndex+1;document.querySelector("#pop [data-act=set]").click()}');
       await waitFor(idle,15000,'anpassningen');
       expect(/Ändringen är sparad/.test(await js('document.getElementById("toast").innerText')),'ingen bekräftelse');});
     await step('Ångra återställer ändringen',async()=>{
@@ -74,11 +75,14 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
       const t=await js('document.getElementById("sheet").hidden?"":document.getElementById("sheet").innerText');
       expect(t.includes('Hela perioden')&&t.includes('Begränsningar')&&t.includes('Hemgrupp'),'personens sida saknar innehåll');
       expect(t.indexOf('Hela perioden')<t.indexOf('Ändra uppgifter och begränsningar'),'schemat ska komma före ändringarna');
-      expect(await js('!!document.querySelector("#shZone #pf-pct")'),'ändringarna ligger inte i den egna ytan');});
+      expect(await js('!!document.querySelector("#shZone #pf-pct")'),'ändringarna ligger inte i den egna ytan');
+      expect(t.includes('helgpass')&&t.includes('kvällar'),'helgpass och kvällar visas inte');
+      expect(await js('!document.getElementById("pf-wg")&&!document.getElementById("pf-pref")&&!document.querySelector("[data-k=grp]")'),'arbetshelg, önskemål eller gruppval finns kvar');});
     await step('Klick på bemanningsraden visar dagen för gruppen, och kan visa alla grupper',async()=>{
       await js('document.getElementById("shClose").click();document.querySelector(".covb").click()');
       const t=await js('document.getElementById("sheet").innerText');
-      expect(/pass bemannade/.test(t)&&/Lediga i/.test(t),'dagvyn saknar innehåll');
+      expect(/kurvan täcks|under kurvan/.test(t)&&/Lediga i/.test(t),'dagvyn saknar innehåll');
+      expect(await js('!!document.querySelector("#sheet .cchart")'),'dagvyn saknar diagrammet');
       await js('document.querySelector("[data-dscope=\'-1\']").click()');
       expect(await js('document.querySelectorAll("#sheet .dgroup").length===M.G.length'),'alla grupper visas inte');
       await js('document.querySelector("[data-dstep=\'1\']").click()');
@@ -101,14 +105,18 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
       await js('document.querySelector("#modeSeg [data-mode=period]").click()');
       expect(await js('document.querySelectorAll(".prow").length===M.P'),'fel antal rader');
       await js('document.querySelector("#modeSeg [data-mode=vecka]").click()');});
-    await step('Inställningar: lägga till en passtyp och ångra',async()=>{
+    await step('Inställningar: bemanningskurvan visas, en tid läggs till och ångras',async()=>{
       await js('document.querySelector("#mainNav [data-tab=regler]").click()');
-      const n=await js('S.settings.types.length');
-      expect(await js('document.getElementById("tab-regler").innerText.includes("Passtyper och tider")'),'inställningarna visas inte');
-      await js('document.getElementById("tadd").click()');
-      expect(await js('S.settings.types.length')===n+1,'passtypen lades inte till');
+      expect(await js('document.getElementById("tab-regler").innerText.includes("Bemanning")&&!!document.querySelector("#tab-regler .cchart")'),'kurvan visas inte');
+      const n=await js('S.settings.curves[cvG][cvW].length');
+      await js('document.getElementById("cvAdd").click()');
+      expect(await js('S.settings.curves[cvG][cvW].length')===n+1,'tiden lades inte till');
       await js('document.getElementById("btnUndo").click()');
-      expect(await js('S.settings.types.length')===n,'ångra tog inte bort passtypen');
+      expect(await js('S.settings.curves[cvG][cvW].length')===n,'ångra tog inte bort tiden');
+      await js('{const i=document.querySelector("[data-cvn=\'1\']");i.value="5";i.dispatchEvent(new Event("change",{bubbles:true}))}');
+      expect(await js('S.settings.curves[cvG][cvW][1][1]===5'),'antalet sparades inte');
+      await js('document.querySelector("[data-cvw=weekend]").click()');
+      expect(await js('cvW==="weekend"&&document.querySelector("[data-cvw=weekend]").getAttribute("aria-current")==="true"'),'helgkurvan visas inte');
       await js('document.querySelector("#mainNav [data-tab=schema]").click()');});
     await step('Klistra in från Excel visar förhandsvisning',async()=>{
       await js('document.querySelector("[data-paste]").click()');
@@ -121,16 +129,12 @@ function expect(cond,msg){if(!cond)throw new Error(msg);}
       await js('document.querySelector("#mainNav [data-tab=regler]").click()');
       await js('{const i=document.getElementById("st-org");i.value="Testgården";i.dispatchEvent(new Event("change",{bubbles:true}))}');
       expect(await js('document.getElementById("orgName").textContent==="Testgården"&&document.title.startsWith("Testgården")'),'namnet visas inte');});
-    await step('Var tredje helg fördelar personalen på tre helglag',async()=>{
-      await js('document.querySelector("[data-every=\'3\']").click()');
-      expect(await js('S.settings.rules.wkEvery===3&&S.settings.weeks%3===0&&S.staff.some(x=>x.wg==="C")'),'helglagen fördelades inte');
-      expect(await js('document.getElementById("tab-regler").innerText.includes("Var tredje")'),'inställningen visas inte');});
-    await step('Nattpass kan slås på och en tid över midnatt sparas',async()=>{
-      await js('document.getElementById("st-night").click()');
-      await js('{const i=document.querySelector("[data-vt=\'2.0.1\']");i.value="01:00";i.dispatchEvent(new Event("change",{bubbles:true}))}');
-      expect(await js('S.settings.rules.night&&S.settings.types[2].variants[0][1]==="01:00"'),'nattiden sparades inte');
-      await js('document.getElementById("st-night").click()');
-      expect(await js('S.settings.rules.night'),'nattpass gick att stänga av trots en nattid');});
+    await step('Arbetsdagen och passens längd kan ändras, men inte till natt',async()=>{
+      const set=(id,v)=>js(`(()=>{const i=document.getElementById("${id}");i.value=${JSON.stringify(v)};i.dispatchEvent(new Event("change",{bubbles:true}));})()`);
+      await set('st-d1','22:00');expect(await js('S.settings.day.end==="22:00"'),'sluttiden sparades inte');
+      await set('st-d0','04:00');expect(await js('S.settings.day.start==="06:45"'),'arbetsdagen fick börja före 05');
+      await set('st-smax','10');expect(await js('S.settings.shift.max===600'),'längsta pass sparades inte');
+      expect(await js('!document.getElementById("st-dailyRest")&&!document.getElementById("st-night")'),'vila eller nattpass går att ändra');});
     await step('Radera allt visar välkomstsidan igen',async()=>{
       await js('document.getElementById("rsAll").click()');
       expect(await js('!document.getElementById("tab-regler").hidden'),'raderade utan att fråga');
