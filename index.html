@@ -515,8 +515,7 @@ function defaults(){
     ['Olle G','Petra H','Qasim R','Rut A','Sven E','Tove L','Ulf N','Vanja K','William F','Yasmin D','Zara B','Åke M','Ängla S','Örjan P'],
     ['Rosa C','Sara D','Tomas F','Ulla I','Vera Q','Yusuf Z','Åsa V','Amir M','Britt L','Camilla S','Dragan P','Emma K','Filip R','Greta N'],
     ['Hampus T','Irma J','Jonas W','Klara E','Leo H','Mira A','Noah B','Oskar L','Pia N','Roger S','Selma K','Tilda R','Ture M','Vilma O']];
-  // Avdelning 1 har fler pass per dag än avdelning 2, så tjänstgöringsgraderna är lite högre där.
-  const pcts=[[100,100,90,90,85,85,80,80,75,75,75,75,65,50],[100,90,90,85,80,75,75,75,70,65,65,60,55,50]];
+  const pcts=[Array(14).fill(100),Array(14).fill(100)];
   const groups=['g1','g2','g3','g4'],staff=[];let n=0;
   names.forEach((list,gi)=>list.forEach((nm,i)=>{n++;staff.push({id:'s'+n,name:nm,pct:pcts[gi<2?0:1][i],group:groups[gi],wg:i%2?'B':'A',
     pref:{3:'dag',8:'kvall'}[i]||'',types:null,earliest:null,latest:null,maxLen:null,groups:null});}));
