@@ -277,6 +277,7 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .cchart .cl{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
 .cchart .cb{fill:var(--ok-tint);stroke:#a9d6b1;stroke-width:1}
 .cchart .cb.bad{fill:var(--bad-tint);stroke:var(--bad)}
+.cchart .cs{fill:var(--warn-tint);stroke:var(--warn);stroke-width:1;stroke-dasharray:3 2}
 .cchart .cn{font-size:12px;font-weight:650;fill:var(--accent);text-anchor:middle}
 /* bemanningskurvan under Inställningar: grupper per avdelning, vardag eller helg, kurvan och dess tider */
 .cvtabs{display:flex;flex-wrap:wrap;column-gap:24px;margin:0 -16px;padding:0 6px;border-bottom:1px solid var(--line)}
@@ -402,6 +403,7 @@ table.wt{border-collapse:separate;border-spacing:0;width:100%;min-width:780px;fo
 .grow .dname{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gtrack{position:relative;height:20px}
 .gbar{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--kf,var(--accent));color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums;z-index:1}
+.gbar.sub{background:var(--warn-tint);color:var(--warn);border:1.5px dashed var(--warn)}.grow.sub .gn{font-size:12.5px;font-weight:600;color:var(--warn)}
 .gbar.in{background:repeating-linear-gradient(135deg,var(--kf,var(--accent)) 0 6px,color-mix(in srgb,var(--kf,var(--accent)) 72%,#fff) 6px 12px)}
 .gticks{position:absolute;inset:0 0 0 var(--nm);pointer-events:none}
 .gticks span{position:absolute;top:0;bottom:18px;border-left:1px dashed var(--line-2)}
@@ -511,7 +513,7 @@ const DOWL=['Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag','Söndag'];
 const DAILY_REST=11,WEEKLY_REST=36;
 // Återhämtning utöver lagen: vila under 14 timmar mellan två pass (kväll följd av tidig morgon) undviks, liksom fler än
 // tre kvällar i rad och veckor över 48 timmar.
-const QUICK_REST=14,EVE_ROW=3,WEEK_MAX=48,EDGE_TOL=30;
+const QUICK_REST=14,EVE_ROW=3,WEEK_MAX=48,EDGE_TOL=30,SUB_MIN=240;   // SUB_MIN: en vikarie tas in minst så många minuter
 const MAX_SHIFT=12*60;   // längsta pass
 // Rast: pass över fem timmar har 30 minuter (arbetstidslagen 15 §), pass över tio timmar en timme.
 function breakFor(gross){return gross>600?60:gross>300?30:0;}
@@ -1593,6 +1595,19 @@ function openPerson(p,keep){
 /* ---------- en dag: hur den är bemannad ----------
    Visar för en grupp, eller för alla avdelningar och grupper, vem som jobbar vilket pass, vem som är
    lånad in eller ut, vilka pass som är tomma och vilka i gruppen som är lediga och kan hoppa in. */
+/* Vikariepass för en grupp en dag: luckorna under kurvan delas upp i pass, ett per person som saknas. Varje pass är
+   minst SUB_MIN långt och högst så långt som ett vanligt pass. Ett kortare pass förlängs, helst framåt, och täcker då
+   också andra luckor som ryms i det. */
+function subShifts(segs,d0,d1){
+  const def=segs.map(x=>Math.max(0,x.need-x.have)),mx=S.settings.shift.max,out=[];
+  for(let guard=0;guard<200;guard++){const i=def.findIndex(x=>x>0);if(i<0)break;
+    let j=i;while(j+1<segs.length&&def[j+1]>0&&segs[j+1].b-segs[i].a<=mx)j++;
+    let a=segs[i].a,b=segs[j].b;const gap=b-a;
+    if(gap<SUB_MIN){b=Math.min(d1,a+SUB_MIN);a=Math.max(d0,b-SUB_MIN);}
+    segs.forEach((x,k)=>{if(def[k]>0&&(k>=i&&k<=j||x.a>=a&&x.b<=b))def[k]--;});
+    out.push({a,b,gap});}
+  return out.sort((x,y)=>x.a-y.a||x.b-y.b);
+}
 function openDay(d,g,keep){
   const m=M,dy=m.days[d],scroll=keep?$('#sheet').scrollTop:0,all=g<0,prevG=sheet&&sheet.kind==='day'?sheet.lastG:undefined;sheet={kind:'day',d,g};markDay(d);
   const vik=dy.we,d0=hm(S.settings.day.start),d1=hm(S.settings.day.end);
@@ -1604,17 +1619,21 @@ function openDay(d,g,keep){
     const f=t=>Math.max(0,Math.min(100,(t-d0)/(d1-d0)*100)),ticks=[];for(let t=Math.ceil(d0/60)*60;t<=d1;t+=d1-d0>600?120:60)ticks.push(t);
     const rows=ws.map(q=>{const v=m.row[q][d],x=m.sh.V[v],inn=m.home[q]!==gi,from=inn?`<span class="awaytag" title="Lånad från ${esc(gFull(m.home[q]))}">${esc(m.G[m.home[q]].name)}</span>`:'';
       return `<div class="grow"><span class="gn"><button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${from}</span><span class="gtrack"><span class="gbar${inn?' in':''}${kcls(v)}" style="left:${f(x.st).toFixed(2)}%;width:${(f(x.en)-f(x.st)).toFixed(2)}%" title="${esc(m.staff[q].name)} ${range(v)}">${range(v)}</span></span></div>`;}).join('');
-    const items=ws.length?`<div class="gantt"><div class="gticks">${ticks.map(t=>`<span style="left:${f(t).toFixed(2)}%"><b>${fmtShort(t)}</b></span>`).join('')}</div>
-      <div class="ghead"><span class="gl">Antal i tjänst</span>${covChart(segs,d0,d1,`Bemanning ${G.name}`,true)}</div>${rows}</div>`:'';
-    const gaps=A.gaps.filter(x=>x.d===d&&x.g===gi).map(x=>`<span class="tag ${vik?'warn':'bad'}">${x.n} saknas ${fmtShort(x.from)}–${fmtShort(x.to)}</span>`).join('');
+    const subs=subShifts(segs,d0,d1),subH=subs.reduce((a,x)=>a+x.b-x.a,0);
+    segs.forEach(x=>{x.sub=subs.filter(u=>u.a<=x.a&&u.b>=x.b).length;});
+    const subRows=subs.map((x,i)=>{const t=`${fmtShort(x.a)}–${fmtShort(x.b)}`,ext=x.b-x.a>x.gap;
+      return `<div class="grow sub"><span class="gn">Vikarie${subs.length>1?' '+(i+1):''}</span><span class="gtrack"><span class="gbar sub" style="left:${f(x.a).toFixed(2)}%;width:${(f(x.b)-f(x.a)).toFixed(2)}%" title="Vikarie ${t}, ${fmtDur(x.b-x.a)} h${ext?`. Luckan är ${fmtDur(x.gap)} h, men en vikarie tas in minst ${SUB_MIN/60} timmar`:''}">${t}</span></span></div>`;}).join('');
+    const items=ws.length||subs.length?`<div class="gantt"><div class="gticks">${ticks.map(t=>`<span style="left:${f(t).toFixed(2)}%"><b>${fmtShort(t)}</b></span>`).join('')}</div>
+      <div class="ghead"><span class="gl">Antal i tjänst</span>${covChart(segs,d0,d1,`Bemanning ${G.name}`,true)}</div>${rows}${subRows}</div>`:'';
+    const gaps=subs.map((x,i)=>`<span class="tag ${vik?'warn':'bad'}">Vikarie${subs.length>1?' '+(i+1):''} ${fmtShort(x.a)}–${fmtShort(x.b)} · ${fmtDur(x.b-x.a)} h</span>`).join('');
     const home=staffIdx(gi),out=home.filter(q=>{const gg=m.grp[q*m.N+d];return gg>=0&&gg!==gi;});
     const free=home.filter(q=>m.row[q][d]<0);
     const freeTxt=free.map(q=>{const notes=[];if(dy.we&&!m.wkWork[q*m.WK+dy.w])notes.push('ledig helg');
       return `<button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button>${notes.length?`<span class="muted small"> (${notes.join(', ')})</span>`:''}`;}).join(', ');
-    return `<div class="dgroup"><div class="dgh"><h3>${esc(m.U[G.unit].name)} ${esc(G.name)}</h3><span class="${gapH?(vik?'warnt':'badt'):'okt'}">${gapH?`${fmtDur(gapH*60)} h under kurvan${vik?', till vikarie':''}`:`${ws.length} i tjänst, kurvan täcks`}</span></div>
+    return `<div class="dgroup"><div class="dgh"><h3>${esc(m.U[G.unit].name)} ${esc(G.name)}</h3><span class="${gapH?(vik?'warnt':'badt'):'okt'}">${gapH?`${subs.length} ${subs.length===1?'vikarie behövs':'vikarier behövs'}, ${fmtDur(subH)} h`:`${ws.length} i tjänst, kurvan täcks`}</span></div>
       ${gaps?`<div class="dgaps">${gaps}</div>`:''}
       ${items||covChart(segs,d0,d1,`Bemanning ${G.name}`)+'<p class="small muted">Ingen arbetar här den här dagen.</p>'}
-      <p class="small muted">Överst: linjen är bemanningskurvan och staplarna hur många som arbetar. Under: varje persons pass under dagen.</p>
+      <p class="small muted">Överst: linjen är bemanningskurvan och staplarna hur många som arbetar. Under: varje persons pass under dagen.${subs.length?` Streckat är det en vikarie behöver ta, både i staplarna och som pass. En vikarie tas in minst ${SUB_MIN/60} timmar, även när luckan är kortare.`:''}</p>
       ${out.length?`<p class="small"><b>Utlånade:</b> ${out.map(q=>`<button class="dname" data-p="${q}">${esc(m.staff[q].name)}</button> till ${esc(gFull(m.grp[q*m.N+d]))}`).join(', ')}</p>`:''}
       <p class="small"><b>Lediga i ${esc(G.name)}:</b> ${freeTxt||'<span class="muted">ingen</span>'}</p></div>`;};
   const scopeG=g>=0?g:(prevG??0);
@@ -1629,13 +1648,15 @@ function openDay(d,g,keep){
    hur många som arbetar som staplar, röda där kurvan inte täcks. Utan have fylls ytan under kurvan och talen skrivs ut. */
 function covChart(segs,d0,d1,label,inner){
   if(!segs.length||d1<=d0)return '';
-  const W=inner?320:420,H=inner?150:150,pl=inner?0:22,pr=inner?0:8,pt=inner?14:18,pb=inner?2:20,has=segs.some(s=>s.have!=null),mx=Math.max(2,...segs.map(s=>Math.max(s.need,s.have||0)));
+  const W=inner?320:420,H=inner?150:150,pl=inner?0:22,pr=inner?0:8,pt=inner?14:18,pb=inner?2:20,has=segs.some(s=>s.have!=null),mx=Math.max(2,...segs.map(s=>Math.max(s.need,(s.have||0)+(s.sub||0))));
   const x=t=>(pl+(t-d0)/(d1-d0)*(W-pl-pr)).toFixed(1),y=n=>(pt+(1-n/mx)*(H-pt-pb)).toFixed(1);
   let g='';
   const step=mx>12?4:mx>6?2:1;
   for(let n=0;n<=mx;n+=step)g+=`<line x1="${pl}" x2="${W-pr}" y1="${y(n)}" y2="${y(n)}" class="cg"/>`+(inner?(n?`<text x="2" y="${(+y(n)-2).toFixed(1)}" class="cy" style="text-anchor:start">${n}</text>`:''):`<text x="${pl-6}" y="${(+y(n)+3.5).toFixed(1)}" class="cy">${n}</text>`);
   if(!inner)for(let t=Math.ceil(d0/120)*120;t<=d1;t+=120)g+=`<text x="${x(t)}" y="${H-6}" class="cx">${fmtShort(t)}</text>`;
-  if(has)segs.forEach(s=>{if(!s.have)return;g+=`<rect x="${(+x(s.a)+.5).toFixed(1)}" y="${y(s.have)}" width="${Math.max(0,x(s.b)-x(s.a)-1).toFixed(1)}" height="${(y(0)-y(s.have)).toFixed(1)}" class="cb${s.have<s.need?' bad':''}"/>`;});
+  if(has)segs.forEach(s=>{if(!s.have)return;g+=`<rect x="${(+x(s.a)+.5).toFixed(1)}" y="${y(s.have)}" width="${Math.max(0,x(s.b)-x(s.a)-1).toFixed(1)}" height="${(y(0)-y(s.have)).toFixed(1)}" class="cb${s.have+(s.sub||0)<s.need?' bad':''}"/>`;});
+  // vikariens del ritas streckad ovanpå den egna personalen
+  segs.forEach(s=>{if(!s.sub)return;const h=s.have||0;g+=`<rect x="${(+x(s.a)+.5).toFixed(1)}" y="${y(h+s.sub)}" width="${Math.max(0,x(s.b)-x(s.a)-1).toFixed(1)}" height="${(y(h)-y(h+s.sub)).toFixed(1)}" class="cs"/>`;});
   let path='';segs.forEach((s,i)=>{path+=`${i?'L':'M'}${x(s.a)} ${y(s.need)}L${x(s.b)} ${y(s.need)}`;});
   if(!has)g+=`<path d="${path}L${x(segs[segs.length-1].b)} ${y(0)}L${x(segs[0].a)} ${y(0)}Z" class="ca"/>`;
   g+=`<path d="${path}" class="cl"/>`;
