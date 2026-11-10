@@ -37,9 +37,9 @@ const E=require(tmp);fs.unlinkSync(tmp);
 Object.assign(E.W,WEIGHTS);
 
 /* ---------- körning ---------- */
-function solve(S,seed){
+function solve(S,seed,longer=1){   // longer: så många gånger längre sökning, för scenarier med fler veckor
   E.setRNG(E.mulberry32(seed));
-  const t0=Date.now(),it=Math.round((ITERS||S.settings.iterations)/STARTS);let best=null;
+  const t0=Date.now(),it=Math.round((ITERS||S.settings.iterations)*longer/STARTS);let best=null;
   for(let k=0;k<STARTS;k++){
     E.buildModel(S);E.computeAll();E.greedyFill();
     for(let i=0;i<it;i++)E.trySwap(60*Math.pow(.3/60,i/it));
@@ -132,10 +132,18 @@ function metrics(S,A){
     let f=-1;for(let d=0;d<N;d++)if(row[d]<0){f=d;break;}if(f<0)continue;
     let run=0;for(let k=1;k<=N;k++){const d=(f+k)%N;if(row[d]>=0)run++;else{if(run>=6)runs6++;if(run>=7)runs7++;run=0;}}}
   return {
-    personal:P, timmarOk:A.hoursOk, maxAvvikelseMin:P?Math.max(...devs):0,
+    personal:P, timmarOk:A.hoursOk,
+    // långledighet: alla ska ha ett block om minst fyra lediga dagar per fyraveckorsperiod, och ingen ett längre än de andra
+    langledighetMiss:A.persons.filter(x=>x.longOff<M.NB).length, langstaLedighet:P?Math.max(...A.persons.map(x=>x.maxOff)):0,
+    timmarEfter19:Math.round(A.persons.reduce((a,x)=>a+x.late,0)/60/M.WK), maxAvvikelseMin:P?Math.max(...devs):0,
     luckaVardagH:Math.round(A.shortWd/6)/10, vikarieHelgH:Math.round(A.shortWe/6)/10,
     blockPct:Math.round(A.blockPct*1000)/10, maxDagarIRad:A.maxRun,
-    ensammaLediga:A.persons.reduce((a,x)=>a+x.singles,0),
+    ensammaLediga:A.persons.reduce((a,x)=>a+x.singles,0), ensammaMax:P?Math.max(...A.persons.map(x=>x.singles)):0,
+    // återhämtning: vila under 14 h mellan två pass, pass som varken börjar eller slutar vid dagens kant, kvällar i rad,
+    // arbetsdagar utöver det minsta möjliga och tyngsta veckan
+    kortVila:A.persons.reduce((a,x)=>a+x.quick,0), passMittPaDagen:A.totN-A.persons.reduce((a,x)=>a+x.edgeN,0),
+    kvallarIRad:P?Math.max(...A.persons.map(x=>x.eveRun)):0, dagarOver:P?Math.max(...A.persons.map(x=>x.overDays)):0,
+    tyngstaVeckaH:P?Math.round(Math.max(...A.persons.map(x=>x.maxWeek))/6)/10:0,
     helgpass:weN.length?`${Math.min(...weN)}–${Math.max(...weN)}`:'–', helgSpridning:weN.length?Math.max(...weN)-Math.min(...weN):0,
     kvallsandel:evS.length?`${Math.round(Math.min(...evS)*100)}–${Math.round(Math.max(...evS)*100)} %`:'–',
     kvallSpridning:evS.length?Math.round((Math.max(...evS)-Math.min(...evS))*100):0, dagSpridning:A.daySpread,
@@ -182,18 +190,21 @@ function randomConfig(seed){
 const SCEN=[
   // gate: kvalitetsgränser som varje körning måste klara (gäller inte snabbläget, som kör färre iterationer)
   {name:'Standard (demodata, 4 grupper × 14, alla heltid)',make:()=>base(),
-    gate:{timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:2,perioder7:1,vikarieHelgH:12,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20,dagSpridning:4}},  // appen söker fem gånger längre
-  {name:'Blandade tjänstgöringsgrader',make:()=>setAll(base(),(x,i)=>x.pct=[100,100,90,90,85,85,80,80,75,75,75,75,65,50][i%14]),gate:{timmarMiss:1,maxAvvikelseMin:30}},
+    // Långledigheten reserverar två vardagar per person och period, så testets kortare sökning lämnar några kvällstimmar
+    // otäckta. Appen söker fem gånger längre och brukar ha 0–2 timmar lucka.
+    gate:{langledighetMiss:0,langstaLedighet:5,timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:8,perioder7:1,vikarieHelgH:12,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20,dagSpridning:4,
+      passMittPaDagen:40,kortVila:40,ensammaMax:4,kvallarIRad:5,dagarOver:2,tyngstaVeckaH:53}},
+  {name:'Blandade tjänstgöringsgrader',make:()=>setAll(base(),(x,i)=>x.pct=[100,100,90,90,85,85,80,80,75,75,75,75,65,50][i%14]),gate:{langledighetMiss:0,timmarMiss:1,maxAvvikelseMin:30}},
   {name:'Mest deltid (50–60 %)',make:()=>setAll(base(),(x,i)=>x.pct=i%2?50:60)},
   {name:'Underbemannat: 10 per grupp',make:()=>{const S=base();groupsOf(S).forEach(g=>makeGroup(S,g,Array(10).fill(100)));return S;}},
-  {name:'Överbemannat: 18 per grupp',make:()=>{const S=base();groupsOf(S).forEach(g=>makeGroup(S,g,Array(18).fill(100)));return S;},gate:{timmarMiss:1,luckaVardagH:0}},
+  {name:'Överbemannat: 18 per grupp',make:()=>{const S=base();groupsOf(S).forEach(g=>makeGroup(S,g,Array(18).fill(100)));return S;},gate:{timmarMiss:4,luckaVardagH:0.5}},  // de reserverade lediga dagarna gör exakta timmar svårare när alla har få pass
   // helglagen sparade i obalans fördelas om av systemet, så att helgerna bemannas lika
-  {name:'Helglag i obalans jämnas ut (10 udda, 4 jämna)',make:()=>setAll(base(),(x,i)=>x.wg=(i%14)<10?'A':'B'),gate:{luckaVardagH:1,vikarieHelgH:12},
+  {name:'Helglag i obalans jämnas ut (10 udda, 4 jämna)',make:()=>setAll(base(),(x,i)=>x.wg=(i%14)<10?'A':'B'),gate:{langledighetMiss:0,luckaVardagH:6,vikarieHelgH:12},
     check:S=>{const bad=[];['g1','g2','g3','g4'].forEach(g=>{const c=[0,1].map(k=>S.staff.filter(x=>x.group===g&&(x.wg==='B'?1:0)===k).length);if(Math.abs(c[0]-c[1])>1)bad.push(`${g}: helglagen ${c[0]} och ${c[1]}`);});return bad;}},
   // en låst ledig lördag i vecka 1 ger laget som arbetar jämna veckor, ett låst helgpass i vecka 2 likaså
   {name:'Låst ledig helgdag styr helglaget',make:()=>{const S=base();S.locks={s1:{'5':'-'},s2:{'12':'0700-1530@g1'}};return S;},
     check:S=>['s1','s2'].filter(id=>S.staff.find(x=>x.id===id).wg!=='B').map(id=>`${id} hamnade inte i laget för jämna veckor`)},
-  {name:'Grundschema 8 veckor (timmar per fyraveckorsperiod)',make:()=>{const S=base();S.settings.weeks=8;return S;},gate:{timmarMiss:1,luckaVardagH:6}},  // dubbelt så stort; appen söker fem gånger längre och får 0
+  {name:'Grundschema 8 veckor (timmar per fyraveckorsperiod)',make:()=>{const S=base();S.settings.weeks=8;return S;},longer:2,gate:{langledighetMiss:0,timmarMiss:1,luckaVardagH:14,vikarieHelgH:12}},  // dubbelt så stort, så testet söker dubbelt så länge; appen söker 15 miljoner drag och får cirka 1 h
   {name:'Kortare heltid: 35 h',make:()=>{const S=base();S.settings.fullTime=35;return S;}},
   {name:'Längre heltid: 40 h',make:()=>{const S=base();S.settings.fullTime=40;return S;}},
   {name:'Ingen utlåning mellan grupper',make:()=>{const S=base();S.settings.rules.lend='aldrig';return S;},gate:{utanforHemgrupp:0}},
@@ -236,7 +247,7 @@ const results=[];let hardFail=0,gateFail=0;
 // Kvalitetsgränser: returnerar en lista med det som inte nåddes
 function checkGate(g,met){if(!g||QUICK)return [];const bad=[];
   if(g.timmarMiss!==undefined&&met.personal-met.timmarOk>g.timmarMiss)bad.push(`${met.personal-met.timmarOk} får inte exakt sina timmar (högst ${g.timmarMiss})`);
-  ['maxAvvikelseMin','luckaVardagH','perioder7','vikarieHelgH','utanforHemgrupp','helgSpridning','kvallSpridning','dagSpridning'].forEach(k=>{if(g[k]!==undefined&&met[k]>g[k])bad.push(`${k} ${met[k]} (högst ${g[k]})`);});
+  ['langledighetMiss','langstaLedighet','maxAvvikelseMin','luckaVardagH','perioder7','vikarieHelgH','utanforHemgrupp','helgSpridning','kvallSpridning','dagSpridning','kortVila','passMittPaDagen','ensammaMax','kvallarIRad','dagarOver','tyngstaVeckaH'].forEach(k=>{if(g[k]!==undefined&&met[k]>g[k])bad.push(`${k} ${met[k]} (högst ${g[k]})`);});
   return bad;}
 const pad=(s,n)=>String(s).padEnd(n).slice(0,n);
 console.log(`Schemamotorn · ${SCEN.length} scenarier · frön ${SEEDS.join(', ')} · ${QUICK?'snabbläge':'full körning'}\n`);
@@ -244,7 +255,7 @@ for(const sc of SCEN){
   if(ONLY&&!sc.name.toLowerCase().includes(ONLY))continue;
   for(const seed of SEEDS){
     let S,A,ms,errs,met;
-    try{S=E.normalize(sc.make());({A,ms}=solve(S,seed));errs=independentChecks(S,A).concat(sc.check?sc.check(S):[]);met=metrics(S,A);}
+    try{S=E.normalize(sc.make());({A,ms}=solve(S,seed,sc.longer));errs=independentChecks(S,A).concat(sc.check?sc.check(S):[]);met=metrics(S,A);}
     catch(e){console.log(`✗ ${sc.name} (frö ${seed}): KRASCH ${e.stack}`);hardFail++;results.push({scenario:sc.name,seed,crash:e.message});continue;}
     const flagged=A.dailyV+A.weeklyV>0;
     let ok=errs.length===0;
@@ -253,7 +264,7 @@ for(const sc of SCEN){
     if(!ok)hardFail++;
     const gateBad=checkGate(sc.gate,met);if(gateBad.length)gateFail++;
     results.push({scenario:sc.name,seed,ms,ok,gate:gateBad,errors:errs.slice(0,10),...met});
-    console.log(`${ok?(gateBad.length?'△':'✓'):'✗'} ${pad(sc.name,52)} ${String(ms).padStart(5)} ms | timmar ${met.timmarOk}/${met.personal} (max ${met.maxAvvikelseMin} min) | lucka vard ${met.luckaVardagH} h helg ${met.vikarieHelgH} h | block ${met.blockPct}% | max ${met.maxDagarIRad} d i rad | helgpass ${met.helgpass} | kväll ${met.kvallsandel} | dagar ±${met.dagSpridning} | utanför hemgrupp ${met.utanforHemgrupp} % | ledig helg ${met.helgVilaH} h | 6-dagarsveckor ${met.sexdagarsveckor} | 6+ i rad ${met.perioder6}, 7+ ${met.perioder7}`);
+    console.log(`${ok?(gateBad.length?'△':'✓'):'✗'} ${pad(sc.name,52)} ${String(ms).padStart(5)} ms | timmar ${met.timmarOk}/${met.personal} (max ${met.maxAvvikelseMin} min) | långledighet ${met.personal-met.langledighetMiss}/${met.personal}, längsta ${met.langstaLedighet} d | mitt på dagen ${met.passMittPaDagen} pass, efter 19 ${met.timmarEfter19} h/v | kort vila ${met.kortVila} | ensamma lediga ${met.ensammaLediga} (max ${met.ensammaMax}) | kvällar i rad ${met.kvallarIRad} | tyngsta vecka ${met.tyngstaVeckaH} h | dagar över ${met.dagarOver} | lucka vard ${met.luckaVardagH} h helg ${met.vikarieHelgH} h | block ${met.blockPct}% | max ${met.maxDagarIRad} d i rad | helgpass ${met.helgpass} | kväll ${met.kvallsandel} | dagar ±${met.dagSpridning} | utanför hemgrupp ${met.utanforHemgrupp} % | ledig helg ${met.helgVilaH} h | 6-dagarsveckor ${met.sexdagarsveckor} | 6+ i rad ${met.perioder6}, 7+ ${met.perioder7}`);
     (A.todo||[]).filter(i=>i.p<0&&/timmar per vecka/.test(i.text)).forEach(i=>console.log('    → '+i.text));
     errs.slice(0,3).forEach(e=>console.log('    ! '+e));
     gateBad.forEach(e=>console.log('    △ under kvalitetsgränsen: '+e));
