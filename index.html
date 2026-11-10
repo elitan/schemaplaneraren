@@ -157,6 +157,9 @@ details.rules .card{box-shadow:none}
 .smore{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;white-space:nowrap}
 .smore svg{transition:transform .15s}
 .status.open .smore svg{transform:rotate(180deg)}
+.ssub{display:flex;flex-wrap:wrap;gap:6px 28px;align-items:baseline;padding:10px 16px 12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.ssub b{font-size:14px;font-weight:650;color:var(--ink);font-variant-numeric:tabular-nums;margin-right:4px}
+.ssub .sst{font-weight:600;color:var(--warn)}
 .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line)}
 .metric{padding:10px 16px;display:flex;flex-direction:column;gap:1px;min-width:0}
 .metric+.metric{border-left:1px solid var(--line)}
@@ -1403,12 +1406,15 @@ function renderStatus(){
   const a=A,items=statusItems=a.todo.filter(i=>i.sev!=='vik'),hardN=items.filter(i=>i.sev==='hard').length;
   const bad=hardN>0,lawN=a.dailyV+a.weeklyV;
   const title=bad?`${hardN} ${hardN===1?'sak behöver':'saker behöver'} åtgärdas`:'Schemat är klart';
+  const st=subTotals(),hh=x=>fmtDur(x)+' h';
   const sub=[lawN?`${lawN} brister mot arbetstidslagen`:'Följer arbetstidslagen',
     a.shortWd?`${Math.max(1,Math.round(a.shortWd/60))} timmar saknas i bemanningen på vardagar`:'Bemanningen täcks alla vardagar',
-    a.shortWe?`${Math.max(1,Math.round(a.shortWe/60))} helgtimmar går till vikarie`:''].filter(Boolean).join(' · ');
+    st.n?'':'ingen vikarie behövs'].filter(Boolean).join(' · ');
+  // Vikarietimmarna delas efter vad de kostar: vardag före 19, vardag efter 19 och helg.
+  const subRow=st.n?`<div class="ssub" title="En vikarie tas in minst ${SUB_MIN/60} timmar, även när luckan är kortare"><span class="sst">Vikarie på ${M.WK} veckor</span><span><b>${hh(st.day)}</b>vardag före ${LATE/60}</span><span><b>${hh(st.eve)}</b>vardag efter ${LATE/60}</span><span><b>${hh(st.we)}</b>helg</span><span><b>${hh(st.day+st.eve+st.we)}</b>totalt, ${st.n} pass</span></div>`:'';
   const more=items.length?`<span class="smore">${items.length} att titta på ${CHEV}</span>`:'';
   el.className='status '+(bad?'bad':'ok')+(todoOpen&&items.length?' open':'');
-  el.innerHTML=`<button class="shead" id="sToggle" ${items.length?'':'disabled'} aria-expanded="${todoOpen}"><span class="sicon">${bad?ICON_BAD:ICON_OK}</span><span class="stext"><b>${title}</b><span>${sub}</span></span>${more}</button>`+
+  el.innerHTML=`<button class="shead" id="sToggle" ${items.length?'':'disabled'} aria-expanded="${todoOpen}"><span class="sicon">${bad?ICON_BAD:ICON_OK}</span><span class="stext"><b>${title}</b><span>${sub}</span></span>${more}</button>`+subRow+
     (todoOpen&&items.length?`<ul class="todo">${items.map((i,k)=>`<li><button data-k="${k}"><i class="sev ${i.sev}"></i><span class="tname">${i.p>=0?esc(M.staff[i.p].name):'Bemanning'}</span><span class="what">${esc(i.text)}</span><span class="when">${i.d>=0?dShort(M.days[i.d]):''}</span></button></li>`).join('')}</ul>`:'');
 }
 
@@ -1607,6 +1613,14 @@ function subShifts(segs,d0,d1){
     segs.forEach((x,k)=>{if(def[k]>0&&(k>=i&&k<=j||x.a>=a&&x.b<=b))def[k]--;});
     out.push({a,b,gap});}
   return out.sort((x,y)=>x.a-y.a||x.b-y.b);
+}
+// Vikarietimmar i hela grundschemat, med minst SUB_MIN per vikarie: vardagar före 19, vardagar efter 19 och helger.
+function subTotals(){
+  if(A.sub)return A.sub;const m=M,d0=hm(S.settings.day.start),d1=hm(S.settings.day.end),L=LATE,t={n:0,day:0,eve:0,we:0};
+  for(let d=0;d<m.N;d++)for(let gi=0;gi<m.nG;gi++){if(!A.gapH[gi][d])continue;const b=(d*m.nG+gi)*m.K,segs=[];
+    for(let k=0;k<m.K;k++)segs.push({a:m.sh.TP[k],b:m.sh.TP[k+1],need:m.need[b+k],have:m.cnt[b+k]});
+    subShifts(segs,d0,d1).forEach(x=>{t.n++;if(m.days[d].we)t.we+=x.b-x.a;else{const e=Math.max(0,x.b-Math.max(x.a,L));t.eve+=e;t.day+=x.b-x.a-e;}});}
+  return A.sub=t;
 }
 function openDay(d,g,keep){
   const m=M,dy=m.days[d],scroll=keep?$('#sheet').scrollTop:0,all=g<0,prevG=sheet&&sheet.kind==='day'?sheet.lastG:undefined;sheet={kind:'day',d,g};markDay(d);
@@ -1896,6 +1910,7 @@ function buildWorkbook(X){
   ws2['!cols']=[{wch:24},{wch:16},{wch:12},{wch:9},{wch:9},{wch:7},{wch:8},{wch:9},{wch:12},{wch:16},{wch:15}];
   X.utils.book_append_sheet(wb,ws2,'Summering');
   const rr=[['Regler och lag'],[],['Krav','Resultat']];A.law.concat(A.rules,A.rec).forEach(r=>rr.push([r.paper,r.val]));
+  {const t=subTotals();rr.push([],[`Vikarietimmar på ${M.WK} veckor (minst ${SUB_MIN/60} h per pass)`,`Vardag före ${LATE/60}: ${fmtDur(t.day)} h · vardag efter ${LATE/60}: ${fmtDur(t.eve)} h · helg: ${fmtDur(t.we)} h · ${t.n} pass`]);}
   const ws3=X.utils.aoa_to_sheet(rr);ws3['!cols']=[{wch:60},{wch:60}];X.utils.book_append_sheet(wb,ws3,'Regler');
   return wb;
 }
