@@ -79,7 +79,7 @@ Längst ner kan man fälla ut hur varje regel följs.
   - Före en ledig helg slipper man helst fredagskvällen.
 - **Långledighet:** varje fyraveckorsperiod förlängs en av personens lediga helger till fyra dagar, torsdag–söndag eller lördag–tisdag, så att alla får lika lång ledighet och ingen bara tre dagar. Systemet fördelar platserna jämnt i varje grupp och helglag, på samma sätt som helglagen, så att frånvaron sprids lika över torsdag, fredag, måndag och tisdag. Fredag–måndag används inte, eftersom fredag och måndag då blir lediga dubbelt så ofta. Dagarna är reserverade och motorn lägger inga pass där, men chefen kan låsa ett. Block längre än fyra dagar undviks. Personens sida visar när långledigheten ligger.
 - **Personliga begränsningar:** tidigast start, senast slut och längsta pass, för den som till exempel inte kan jobba kväll. De följs alltid, utom där chefen själv låst ett pass.
-- **Rättvisa:** personens sida och Excel-filen visar antal pass, kvällar och helgpass, och under Inställningar visas spannet för alla.
+- **Rättvisa:** personens sida visar antal pass, kvällar, helgpass och längsta ledighet i sträck, Excel-filen antal pass, kvällar och helgpass, och under Inställningar visas spannet för alla.
 - **Grundschemat** upprepas.
 
 ## Arbetstidslagen
@@ -156,9 +156,11 @@ Hårda regler kontrolleras med en egen, oberoende räkning:
 - högst åtta timmars lucka i kurvan på vardagar (appen söker fem gånger längre än testet och brukar ha 0–2 timmar)
 - alla har lika många helgpass, högst ett skiljer
 - kvällsandelen skiljer högst 20 procentenheter mellan personer
+- längsta ledigheten i sträck skiljer högst en dag mellan personer med samma tjänstgöringsgrad
+- högst 5 % av passen ligger mer än en timme från arbetsdagens början och slut
 - vid samma tid i samma grupp skiljer det högst 4 personer mellan två vardagar (appen brukar hamna på 2–3)
 - högst en period med 7 dagar i rad (appen brukar inte ha någon)
-- högst 12 helgtimmar till vikarie
+- högst 170 helgtimmar till vikarie (demots helgkurva kräver cirka 145 timmar mer än personalen kan täcka med varannan helg)
 - högst 8 % utanför hemgruppen
 - högst 40 pass mitt på dagen av cirka 960 (appen brukar ha cirka 10)
 - högst 40 gånger med kortare vila än 14 timmar mellan två pass (appen brukar ha cirka 10)

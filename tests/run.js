@@ -157,6 +157,10 @@ function metrics(S,A){
 
 /* ---------- byggstenar för scenarier ---------- */
 const base=()=>E.defaults();
+// Demots helgkurva vill ha 4 i tjänst 07–21. Med varannan helg arbetar 7 av 14, men det behövs 4 som börjar tidigt och 4 som
+// slutar sent med pass på högst 9,5 timmar. Det fattas alltså en person per grupp och helgdag, ungefär 4,5 timmar, som går
+// till vikarie: cirka 145 timmar på fyra veckor för fyra grupper.
+const WEEKEND_GAP=170;
 const groupsOf=S=>S.settings.units.flatMap(u=>u.groups.map(g=>g.id));
 const setAll=(S,f)=>{S.staff.forEach(f);return S;};
 // ersätter personalen i en grupp med nya personer med givna tjänstgöringsgrader
@@ -192,19 +196,19 @@ const SCEN=[
   {name:'Standard (demodata, 4 grupper × 14, alla heltid)',make:()=>base(),
     // Långledigheten reserverar två vardagar per person och period, så testets kortare sökning lämnar några kvällstimmar
     // otäckta. Appen söker fem gånger längre och brukar ha 0–2 timmar lucka.
-    gate:{langledighetMiss:0,langstaLedighet:5,timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:8,perioder7:1,vikarieHelgH:12,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20,dagSpridning:4,
+    gate:{langledighetMiss:0,langstaLedighet:5,timmarMiss:0,maxAvvikelseMin:15,luckaVardagH:8,perioder7:1,vikarieHelgH:WEEKEND_GAP,utanforHemgrupp:8,helgSpridning:1,kvallSpridning:20,dagSpridning:4,
       passMittPaDagen:40,kortVila:40,ensammaMax:4,kvallarIRad:5,dagarOver:2,tyngstaVeckaH:53}},
   {name:'Blandade tjänstgöringsgrader',make:()=>setAll(base(),(x,i)=>x.pct=[100,100,90,90,85,85,80,80,75,75,75,75,65,50][i%14]),gate:{langledighetMiss:0,timmarMiss:1,maxAvvikelseMin:30}},
   {name:'Mest deltid (50–60 %)',make:()=>setAll(base(),(x,i)=>x.pct=i%2?50:60)},
   {name:'Underbemannat: 10 per grupp',make:()=>{const S=base();groupsOf(S).forEach(g=>makeGroup(S,g,Array(10).fill(100)));return S;}},
   {name:'Överbemannat: 18 per grupp',make:()=>{const S=base();groupsOf(S).forEach(g=>makeGroup(S,g,Array(18).fill(100)));return S;},gate:{timmarMiss:4,luckaVardagH:0.5}},  // de reserverade lediga dagarna gör exakta timmar svårare när alla har få pass
   // helglagen sparade i obalans fördelas om av systemet, så att helgerna bemannas lika
-  {name:'Helglag i obalans jämnas ut (10 udda, 4 jämna)',make:()=>setAll(base(),(x,i)=>x.wg=(i%14)<10?'A':'B'),gate:{langledighetMiss:0,luckaVardagH:6,vikarieHelgH:12},
+  {name:'Helglag i obalans jämnas ut (10 udda, 4 jämna)',make:()=>setAll(base(),(x,i)=>x.wg=(i%14)<10?'A':'B'),gate:{langledighetMiss:0,luckaVardagH:6,vikarieHelgH:WEEKEND_GAP},
     check:S=>{const bad=[];['g1','g2','g3','g4'].forEach(g=>{const c=[0,1].map(k=>S.staff.filter(x=>x.group===g&&(x.wg==='B'?1:0)===k).length);if(Math.abs(c[0]-c[1])>1)bad.push(`${g}: helglagen ${c[0]} och ${c[1]}`);});return bad;}},
   // en låst ledig lördag i vecka 1 ger laget som arbetar jämna veckor, ett låst helgpass i vecka 2 likaså
   {name:'Låst ledig helgdag styr helglaget',make:()=>{const S=base();S.locks={s1:{'5':'-'},s2:{'12':'0700-1530@g1'}};return S;},
     check:S=>['s1','s2'].filter(id=>S.staff.find(x=>x.id===id).wg!=='B').map(id=>`${id} hamnade inte i laget för jämna veckor`)},
-  {name:'Grundschema 8 veckor (timmar per fyraveckorsperiod)',make:()=>{const S=base();S.settings.weeks=8;return S;},longer:2,gate:{langledighetMiss:0,timmarMiss:1,luckaVardagH:14,vikarieHelgH:12}},  // dubbelt så stort, så testet söker dubbelt så länge; appen söker 15 miljoner drag och får cirka 1 h
+  {name:'Grundschema 8 veckor (timmar per fyraveckorsperiod)',make:()=>{const S=base();S.settings.weeks=8;return S;},longer:2,gate:{langledighetMiss:0,timmarMiss:1,luckaVardagH:14,vikarieHelgH:2*WEEKEND_GAP}},  // dubbelt så stort, så testet söker dubbelt så länge; appen söker 15 miljoner drag och får cirka 1 h
   {name:'Kortare heltid: 35 h',make:()=>{const S=base();S.settings.fullTime=35;return S;}},
   {name:'Längre heltid: 40 h',make:()=>{const S=base();S.settings.fullTime=40;return S;}},
   {name:'Ingen utlåning mellan grupper',make:()=>{const S=base();S.settings.rules.lend='aldrig';return S;},gate:{utanforHemgrupp:0}},
