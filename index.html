@@ -550,19 +550,20 @@ function balanceTeams(staff,locks,weeks){
       const mv=[...list].reverse().find(x=>wgIndex(x)===big&&!fixed.has(x));if(!mv)break;mv.wg=WG[1-big];}});
 }
 /* Långledighet: varje fyraveckorsperiod förlängs en av personens lediga helger till fyra dagar. Platsen (lo, 0–3) säger
-   vilken av periodens två lediga helger (lo%2) och åt vilket håll (LO_PAT): tors–sön eller lör–tis. Fre–mån används inte,
+   vilken av periodens två lediga helger (lo%2) och åt vilket håll (loPat): tors–sön eller lör–tis. Med tre dagars långledighet (inställningen longOff) blir det fre–sön eller lör–mån. Fre–mån används inte,
    eftersom fredag och måndag då blir lediga dubbelt så ofta som torsdag och tisdag. Systemet fördelar platserna jämnt i
    varje grupp och helglag, så att alla får lika lång ledighet och frånvaron sprids lika över tors, fre, mån och tis.
    Dagarna är reserverade: motorn lägger inga pass där, bara chefen kan låsa ett. */
-const LO_PAT=[{o:[-2,-1],name:'tors–sön'},{o:[2,3],name:'lör–tis'}],LO_N=4;
+const LO_PATS={4:[{o:[-2,-1],name:'tors–sön'},{o:[2,3],name:'lör–tis'}],3:[{o:[-1],name:'fre–sön'},{o:[2],name:'lör–mån'}]},LO_N=4,LO_LENS=[3,4];
+const loPat=len=>LO_PATS[len]||LO_PATS[4];
 // Dagarna som är reserverade för en persons långledighet, i varje fyraveckorsperiod.
-function loDays(wgi,lo,weeks){const N=weeks*7,out=[];if(lo==null||lo<0||lo>=LO_N)return out;
-  for(let b=0;b*4<weeks;b++){const wk=b*4+(1-wgi)+2*(lo%2),sa=wk*7+5;LO_PAT[lo>>1].o.forEach(o=>out.push((sa+o+N)%N));}
+function loDays(wgi,lo,weeks,len){const N=weeks*7,out=[];if(lo==null||lo<0||lo>=LO_N)return out;
+  for(let b=0;b*4<weeks;b++){const wk=b*4+(1-wgi)+2*(lo%2),sa=wk*7+5;loPat(len)[lo>>1].o.forEach(o=>out.push((sa+o+N)%N));}
   return out;}
-function balanceLongOff(staff,locks,weeks){
+function balanceLongOff(staff,locks,weeks,len){
   const byT={};staff.forEach(x=>{const k=x.group+'/'+wgIndex(x);(byT[k]=byT[k]||[]).push(x);});
   // en plats krockar om chefen har låst ett pass på någon av dess dagar
-  const clash=(x,lo)=>{const L=locks[x.id]||{};return loDays(wgIndex(x),lo,weeks).some(d=>L[d]!==undefined&&L[d]!=='-');};
+  const clash=(x,lo)=>{const L=locks[x.id]||{};return loDays(wgIndex(x),lo,weeks,len).some(d=>L[d]!==undefined&&L[d]!=='-');};
   Object.values(byT).forEach(list=>{const cnt=new Array(LO_N).fill(0);
     const pick=x=>{let best=-1;for(let lo=0;lo<LO_N;lo++){if(clash(x,lo))continue;if(best<0||cnt[lo]<cnt[best])best=lo;}return best<0?0:best;};
     list.forEach(x=>{if(Number.isInteger(x.lo)&&x.lo>=0&&x.lo<LO_N&&!clash(x,x.lo))cnt[x.lo]++;else x.lo=null;});
@@ -596,8 +597,8 @@ const W={
   //    annars slipper några en helgdag och helgerna blir orättvisa.
   wkMiss:3500,wkWrong:600,wkMix:6,
   // 5. Återhämtning: långa veckor, långa arbetsperioder, ensamma lediga dagar, vila runt ledigheten, jämna veckor.
-  //    Långledighet: varje fyraveckorsperiod ska alla ha ett ledigt block om minst fyra dagar (offLong per saknat block),
-  //    och ledighet utöver fyra dagar i ett block kostar (offOver per dag), så att långa block delas lika.
+  //    Långledighet: varje fyraveckorsperiod ska alla ha ett ledigt block om minst loLen dagar, tre eller fyra (offLong per saknat block),
+  //    och ledighet utöver det i ett block kostar (offOver per dag), så att långa block delas lika.
   offLong:250,offOver:700,offExtra:200,
   sixWeek:150,sixSoft:60,sixRoll:30,longRun:900,run7:800,singleOff:150,singleSq:120,block:10,isolated:8,switch:3,weekVar:.3,weekOver:25,maxWeekPct:20,
   //    Ensamma lediga dagar kostar dessutom i kvadrat per person (singleSq), så att ingen får flera medan andra slipper.
@@ -679,7 +680,7 @@ function normalize(S){
   const rn=(v,lo,hi,def,step)=>{const x=num(v,def);return isFinite(x)?Math.max(lo,Math.min(hi,Math.round(x/step)*step)):def;};
   o.rules={maxRow:rn(r.maxRow,3,7,RULES.maxRow,1),maxWeekDays:rn(r.maxWeekDays,4,7,RULES.maxWeekDays,1),lend:LEND_LABEL[r.lend]?r.lend:'behov'};
   const wk=Math.round(num(st.weeks,4));o.weeks=WEEK_OPTIONS.includes(wk)?wk:wk>4?8:4;
-  o.fullTime=Math.min(45,Math.max(20,Math.round(num(st.fullTime,37)*4)/4));o.iterations=d.iterations;
+  o.longOff=LO_LENS.includes(+st.longOff)?+st.longOff:4;o.fullTime=Math.min(45,Math.max(20,Math.round(num(st.fullTime,37)*4)/4));o.iterations=d.iterations;
   o.orgName=String(st.orgName??'').replace(/\s+/g,' ').trim().slice(0,60);
   o.accent=/^#[0-9a-f]{6}$/i.test(st.accent)?st.accent.toLowerCase():ACCENTS[0][0];
   // arbetsdagen: mellan 05 och 24 och minst tre timmar
@@ -719,7 +720,7 @@ function normalize(S){
     const o2={};Object.keys(src[id]).forEach(k=>{if(/^\d+$/.test(k)&&+k<o.weeks*7&&okVal(src[id][k]))o2[k]=src[id][k];});dst[id]=o2;});};
   copyMap(S.locks,out.locks,v=>v==='-'||okCode(v));
   if(S.schedule&&typeof S.schedule==='object'){out.schedule={};copyMap(S.schedule,out.schedule,okCode);}
-  balanceTeams(out.staff,out.locks,o.weeks);balanceLongOff(out.staff,out.locks,o.weeks);
+  balanceTeams(out.staff,out.locks,o.weeks);balanceLongOff(out.staff,out.locks,o.weeks,o.longOff);
   return out;
 }
 
@@ -732,7 +733,7 @@ function buildModel(S){
   // fri utlåning inom avdelningen kostar nästan inget; aldrig utlåning stängs av helt längre ner
   if(r.lend==='fritt')w.away=5;
   const WK=st.weeks,N=WK*7,NB=Math.max(1,Math.round(WK/BLOCK_WEEKS));
-  balanceLongOff(S.staff,S.locks||{},WK);   // demodata och ny personal kan sakna plats för långledigheten
+  const loLen=LO_LENS.includes(+st.longOff)?+st.longOff:4;balanceLongOff(S.staff,S.locks||{},WK,loLen);   // demodata och ny personal kan sakna plats för långledigheten
   const days=[];for(let d=0;d<N;d++)days.push({d,dow:d%7,w:Math.floor(d/7),we:d%7>=5});
   // grupperna i en platt lista; varje grupp vet sin avdelning
   const G=[],U=st.units.map(u=>({id:u.id,name:u.name,groups:[]})),gIdx={};
@@ -785,7 +786,7 @@ function buildModel(S){
   const canW=new Uint8Array(P*N);
   for(let p=0;p<P;p++)for(let d=0;d<N;d++){const dy=days[d];canW[p*N+d]=lock[p*N+d]===-2&&av[p].length&&!(dy.we&&!wkWork[p*WK+dy.w])?1:0;}
   // långledigheten: de reserverade dagarna får inga pass av motorn
-  const loD=staff.map(x=>N>=28?loDays(wgIndex(x),x.lo,WK):[]);
+  const loD=staff.map(x=>N>=28?loDays(wgIndex(x),x.lo,WK,loLen):[]);
   loD.forEach((L,p)=>L.forEach(d=>{if(lock[p*N+d]===-2)canW[p*N+d]=0;}));
   // vad kurvan kräver i varje intervall, per dag och grupp
   const need=new Int16Array(Math.max(1,N*nG*K));
@@ -806,7 +807,7 @@ function buildModel(S){
   });
   for(let i=0;i<P*N;i++)if(lock[i]!==-2)fixed[i]=1;
   M={S,N,WK,NB,P,days,sh,nV,loD,G,U,nG,gIdx,staff,home,unit,allowG,allowV,av,inG,absent,lock,lockG,fixed,canW,wkWork,need,K,
-    blockT,targetMin,wkCap,sixAllow,nMin,shareE,minEnd,maxStart,w,rules:r,dailyRest:DAILY_REST*60,weeklyRest:WEEKLY_REST*60,maxRow:r.maxRow,maxWD:r.maxWeekDays,
+    loLen,blockT,targetMin,wkCap,sixAllow,nMin,shareE,minEnd,maxStart,w,rules:r,dailyRest:DAILY_REST*60,weeklyRest:WEEKLY_REST*60,maxRow:r.maxRow,maxWD:r.maxWeekDays,
     row:Array.from({length:P},()=>new Int16Array(N).fill(-1)),grp:new Int16Array(Math.max(1,P*N)).fill(-1),cnt:new Int16Array(Math.max(1,N*nG*K)),
     covP:new Float64Array(Math.max(1,N*nG)),pen:new Float64Array(P),total:0,
     tx:{ops:[],ps:[],ks:[],np:[],nk:[],dl:0,stamp:1},pMark:new Int32Array(Math.max(1,P)),kMark:new Int32Array(Math.max(1,N*nG)),
@@ -961,7 +962,7 @@ function workDays(p,c,out){
   c.singles=0;c.blocks=0;c.freeInBlocks=0;c.maxRun=0;c.longOff=0;c.maxOff=0;c.eveRun=0;let offOver=0;
   const runEnd=(run,d)=>{c.blocks++;if(run>c.maxRun)c.maxRun=run;
     if(run>m.maxRow){pen+=w.longRun*(run-m.maxRow)+w.run7*Math.max(0,run-m.maxRow-1);out&&out.push(I('soft',d,`Arbetar ${run} dagar i rad (högst ${m.maxRow})`));}};
-  const freeEnd=free=>{if(free>c.maxOff)c.maxOff=free;if(free>=4){c.longOff++;offOver+=Math.min(free-4,2);}   // taket hindrar att en tom rad blir billigast
+  const freeEnd=free=>{if(free>c.maxOff)c.maxOff=free;if(free>=m.loLen){c.longOff++;offOver+=Math.min(free-m.loLen,2);}   // taket hindrar att en tom rad blir billigast
     if(free===1){c.singles++;pen+=w.singleOff;}else c.freeInBlocks+=free;};
   if(f<0){if(c.n===N&&N>0)runEnd(N,N-1);}
   else{let run=0,free=0,er=0;
@@ -972,11 +973,11 @@ function workDays(p,c,out){
     if(run>0)runEnd(run,(f+N-1)%N);
     if(free>0)freeEnd(free);}
   pen+=w.block*c.blocks+w.singleSq*c.singles*c.singles;
-  // långledighet: minst ett block om fyra dagar per fyraveckorsperiod, och inga onödigt långa block
+  // långledighet: minst ett block om loLen dagar (3 eller 4) per fyraveckorsperiod, och inga onödigt långa block
   if(N>=28){const miss=Math.max(0,m.NB-c.longOff);pen+=w.offLong*miss+w.offOver*offOver;
     // fler långa block än andra är också orättvist, så ett extra kostar
     pen+=w.offExtra*Math.max(0,c.longOff-m.NB);
-    if(miss&&out)out.push(I('soft',-1,`Saknar ledighet om minst fyra dagar i rad${m.NB>1?` i ${miss} av ${m.NB} perioder`:''}`));}
+    if(miss&&out)out.push(I('soft',-1,`Saknar ledighet om minst ${m.loLen} dagar i rad${m.NB>1?` i ${miss} av ${m.NB} perioder`:''}`));}
   return pen;
 }
 // 5. Vila runt ledigheten: ju tidigare sista passet före en ledighet slutar och ju senare första passet efter börjar,
@@ -1222,7 +1223,7 @@ function analyze(){
      val:P?(overMax?`Högst ${overMax} ${overMax===1?'dag':'dagar'} fler än det minsta möjliga på ${m.WK} veckor`:'Alla arbetar det minsta antalet dagar'):'–',st:overMax<=m.NB?'ok':'warn'},
     {n:'G',paper:'Lång vila runt ledigheten',how:'Sista passet före en ledighet slutar så tidigt som möjligt och första passet efter börjar så sent som möjligt. Lediga helger prioriteras, så den som är ledig i helgen slipper helst fredagskvällen.',
      val:wkN?`Lediga helger ger i snitt ${Math.round(wkSum/wkN/60)} h vila, kortast ${Math.floor(wkMinAll/60)} h`:'Inga lediga helger',st:'ok'},
-    {n:'H',paper:'Alla får en långledighet om fyra dagar',how:`Varje fyraveckorsperiod förlängs en av de lediga helgerna till fyra dagar, torsdag–söndag eller lördag–tisdag. Systemet fördelar platserna jämnt i varje grupp och helglag, så att alla får lika lång ledighet och frånvaron sprids över veckodagarna. Längre block än fyra dagar undviks.`,
+    {n:'H',paper:`Alla får en långledighet om ${m.loLen===3?'tre':'fyra'} dagar`,how:`Varje fyraveckorsperiod förlängs en av de lediga helgerna till ${m.loLen===3?'tre dagar, fredag–söndag eller lördag–måndag':'fyra dagar, torsdag–söndag eller lördag–tisdag'}. Systemet fördelar platserna jämnt i varje grupp och helglag, så att alla får lika lång ledighet och frånvaron sprids över veckodagarna. Längre block än ${m.loLen===3?'tre':'fyra'} dagar undviks.`,
      val:`${cnt(x=>x.longOff>=m.NB)} av ${P} personer`,st:pill(cnt(x=>x.longOff>=m.NB),P)}];
   return {persons,flags,missG,gapH,gaps,daySpread,capacity,todo,hard,soft,shortWd,shortWe,needWd,needWe,dailyV,weeklyV,rules,rec,law,hoursOk,blockPct,maxRun,minGapAll,totAway,totN};
 }
@@ -1550,7 +1551,7 @@ function openPerson(p,keep){
     ['Pass i hemgruppen',s.n?`${s.n-s.away} av ${s.n}`:'–'],
     ['Ledighet i block om minst två dagar',pct(s.blockPct)],
     ['Längsta arbetsperiod',`${s.maxRun} dagar`],
-    ['Långledighet',x.lo!=null&&m.N>=28?`${LO_PAT[x.lo>>1].name} vecka ${Array.from({length:m.NB},(_,b)=>b*4+(1-wgIndex(x))+2*(x.lo%2)+1).join(' och ')}`:'–'],
+    ['Långledighet',x.lo!=null&&m.N>=28?`${loPat(m.loLen)[x.lo>>1].name} vecka ${Array.from({length:m.NB},(_,b)=>b*4+(1-wgIndex(x))+2*(x.lo%2)+1).join(' och ')}`:'–'],
     ['Längsta ledighet',`${s.maxOff} dagar i rad`],
     ['Pass först eller sist på dagen',s.n?`${s.edgeN} av ${s.n}`:'–'],
     ['Ensamma lediga dagar',`${s.singles}`],
@@ -1812,6 +1813,7 @@ function renderRegler(){
         <p class="note">Namnet visas i toppfältet och i Excel-filen.</p></div>
       <div class="card"><h2>Grundschema</h2><div class="form">
         <div class="frow"><span>Längd</span>${segBtns('data-weeks',WEEK_OPTIONS.map(w=>[w,w+' veckor']),st.weeks)}</div>
+        <div class="frow"><span>Långledighet</span>${segBtns('data-longoff',LO_LENS.map(n=>[n,n+' dagar']),st.longOff||4)}</div>
         <div class="frow"><label for="st-fullTime">Heltid, timmar per vecka</label><input id="st-fullTime" type="text" inputmode="decimal" value="${String(st.fullTime).replace('.',',')}"></div></div>
         <p class="note">Grundschemat upprepas. Timmarna ska stämma för varje fyraveckorsperiod: heltid ${fmtH(st.fullTime)} h × 4 = ${fmtDur(st.fullTime*240)} h. Alla arbetar varannan helg, udda eller jämna veckor.</p></div>
       <div class="card"><h2>Avdelningar och grupper</h2>${unitsHtml}<div><button class="btn ghost small" id="uadd">+ Lägg till avdelning</button></div>
@@ -2024,6 +2026,8 @@ $('#tab-regler').addEventListener('click',e=>{
   if(t.closest('#rsAll')){if(!resetArm){resetArm=true;renderRegler();return;}resetAll();return;}
   const b=t.closest('[data-weeks]');if(b){const w=+b.dataset.weeks;
     if(w!==st.weeks){edit(()=>{st.weeks=w;});toast(`Grundschemat är ${w} veckor. Uppdatera schemat för att lägga om det.`);}return;}
+  const lb=t.closest('[data-longoff]');if(lb){const n=+lb.dataset.longoff;
+    if(n!==(st.longOff||4)){if(edit(()=>{st.longOff=n;}))toast(`Långledigheten är ${n} dagar. Uppdatera schemat för att lägga om det.`);}return;}
   // bemanningskurvan: vilken som visas, och ändringar i den
   const cg=t.closest('[data-cvg]');if(cg){cvG=cg.dataset.cvg;renderRegler();return;}
   const cw=t.closest('[data-cvw]');if(cw){cvW=cw.dataset.cvw;renderRegler();return;}
