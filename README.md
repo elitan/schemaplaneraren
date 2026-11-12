@@ -131,6 +131,8 @@ node tests/sweep.js --only=standard --seeds=4 '{}' '{"away":120}'   # jämför v
 
 `tests/ui.js` letar efter Chrome. Ange en annan Chromium-webbläsare med `CHROME=/sökväg/till/webbläsaren`. Den behöver Node 22 eller senare.
 
+**`tests/fair.js`** mäter hur lika schemat är mellan personerna: lägsta och högsta värde per person för arbetsdagar, kvällspass, helgkvällar, fredagskvällar, måndagsmorgnar, längsta arbetsperiod, längsta ledighet, tyngsta vecka med mera. Kör `node tests/fair.js` (tre upplägg, två slumptal, ungefär en minut). Den avslutas med felkod 1 om skillnaderna i demot blir större än gränserna i filen. Samma mått visas i appen under Inställningar, "Visa hur reglerna följs", kortet Rättvisa.
+
 **`tests/run.js`** laddar motorn direkt ur `index.html` och kör scenarier i fem grupper:
 
 - **Demodatan:** standard, blandade tjänstgöringsgrader, mest deltid, under- och överbemanning, helglag i obalans som jämnas ut, låst ledig helgdag som styr helglaget, 8 veckor och 35 och 40 timmars heltid.

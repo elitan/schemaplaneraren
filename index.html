@@ -600,7 +600,7 @@ const W={
   //    Långledighet: varje fyraveckorsperiod ska alla ha ett ledigt block om minst loLen dagar, tre eller fyra (offLong per saknat block),
   //    och ledighet utöver det i ett block kostar (offOver per dag), så att långa block delas lika.
   offLong:250,offOver:700,offExtra:200,
-  sixWeek:150,sixSoft:60,sixRoll:30,longRun:900,run7:800,singleOff:150,singleSq:120,block:10,isolated:8,switch:3,weekVar:.3,weekOver:25,maxWeekPct:20,
+  sixWeek:150,sixSoft:60,sixRoll:30,longRun:4000,runTop:1500,run7:800,singleOff:150,singleSq:120,block:10,isolated:8,switch:3,weekVar:.3,weekOver:25,maxWeekPct:20,
   //    Ensamma lediga dagar kostar dessutom i kvadrat per person (singleSq), så att ingen får flera medan andra slipper.
   //    Kort vila: under 14 timmar mellan två pass (quick, per timme som saknas), den fjärde kvällen i rad (eveRun), varje kväll
   //    därefter (eveLong), som väger nästan som en hård regel så att ingen får fler än fyra,
@@ -613,7 +613,7 @@ const W={
   //    Få arbetsdagar (daysOver, per dag i kvadrat över det minsta som timmarna ryms i), så att alla får lika många lediga dagar.
   //    Pass mitt på dagen (mid, per timme från arbetsdagens närmaste kant): passen börjar när dagen börjar eller slutar när
   //    den slutar. Timmar efter 19 (late) räknas för visning men styr inte.
-  away:200,fair:130,fairWe:40,daysOver:200,shift:10,stab:12,mid:80,late:0,
+  away:200,fair:130,fairWe:250,fairFri:150,fairMon:150,daysOver:200,shift:10,stab:12,mid:80,late:0,
   // Sökningen: så ofta ett drag följs av att personens andra pass justeras, så att timmarna går jämnt ut igen. Utan det
   // kan sökningen inte ta bort en arbetsdag, eftersom timmarna då blir fel på vägen.
   fixP:.3};
@@ -881,17 +881,17 @@ function pScore(p,out){
   const pen=lawDailyRest(p,c,out)+lawWeeklyRest(p,c,out)+hours(p,c,out)+weekends(p,c,out)+workDays(p,c,out)
     +restAroundOff(p,c,out)+evenWeeks(p,c,out)+fairness(p,c,out)+other(p,c,out);
   if(out)out.stats={n:c.n,ev:c.ev,we:c.we,day:c.day,mins:c.mins,away:c.away,minGap:c.minGap,minWeek:c.minWeek,maxWeek:c.maxWeek,
-    maxRun:c.maxRun,singles:c.singles,quick:c.quick,eveRun:c.eveRun,weEve:c.weEve,late:c.late,mid:c.mid,longOff:c.longOff,maxOff:c.maxOff,blocks:c.blocks,freeInBlocks:c.freeInBlocks,free:M.N-c.n,wkMissing:c.wkMissing,sixWeeks:c.sixWeeks,
+    maxRun:c.maxRun,singles:c.singles,quick:c.quick,eveRun:c.eveRun,weEve:c.weEve,friEve:c.friEve,monDay:c.monDay,late:c.late,mid:c.mid,longOff:c.longOff,maxOff:c.maxOff,blocks:c.blocks,freeInBlocks:c.freeInBlocks,free:M.N-c.n,wkMissing:c.wkMissing,sixWeeks:c.sixWeeks,
     edges:c.edges,edgeRest:c.edgeRest,wkRestMin:c.wkRestMin,wkRestSum:c.wkRestSum,wkRestN:c.wkRestN,weeks:Array.from(c.wk),blocks4:Array.from(c.bm)};
   return pen;
 }
 // En genomgång av raden: antal pass, kvällar, timmar per vecka och period, dagar per vecka och pass utanför hemgruppen.
 function tally(p,c){
   const m=M,N=m.N,row=m.row[p],sh=m.sh,b=p*N,hg=m.home[p];
-  c.wk.fill(0);c.wc.fill(0);c.bm.fill(0);c.n=0;c.ev=0;c.we=0;c.weEve=0;c.day=0;c.mins=0;c.away=0;c.late=0;c.mid=0;
+  c.wk.fill(0);c.wc.fill(0);c.bm.fill(0);c.n=0;c.ev=0;c.we=0;c.weEve=0;c.day=0;c.mins=0;c.away=0;c.late=0;c.mid=0;c.friEve=0;c.monDay=0;
   for(let d=0;d<N;d++){const v=row[d];if(v<0)continue;const w=(d/7)|0;
     c.n++;c.mins+=sh.net[v];c.wk[w]+=sh.net[v];c.wc[w]++;c.bm[(w/BLOCK_WEEKS)|0]+=sh.net[v];
-    if(sh.eve[v])c.ev++;else c.day++;if(m.days[d].we){c.we++;if(sh.eve[v])c.weEve++;}c.late+=sh.late[v];c.mid+=sh.mid[v];
+    if(sh.eve[v])c.ev++;else c.day++;if(m.days[d].we){c.we++;if(sh.eve[v])c.weEve++;}else if(d%7===4){if(sh.eve[v])c.friEve++;}else if(d%7===0&&!sh.eve[v])c.monDay++;c.late+=sh.late[v];c.mid+=sh.mid[v];
     if(m.grp[b+d]!==hg)c.away++;}
 }
 // 1. Dygnsvila, arbetstidslagen 13 §: minst 11 timmar mellan två pass, även när grundschemat börjar om.
@@ -962,7 +962,7 @@ function workDays(p,c,out){
   // arbetsblock och ledighetsblock (cykliskt), med start på en dag som inleder en ledighet
   let f=-1;for(let d=0;d<N;d++){if(row[d]<0&&row[(d+N-1)%N]>=0){f=d;break;}}
   c.singles=0;c.blocks=0;c.freeInBlocks=0;c.maxRun=0;c.longOff=0;c.maxOff=0;c.eveRun=0;let offOver=0;
-  const runEnd=(run,d)=>{c.blocks++;if(run>c.maxRun)c.maxRun=run;
+  const runEnd=(run,d)=>{c.blocks++;if(run>c.maxRun)c.maxRun=run;if(run>=m.maxRow)pen+=w.runTop;   // även en period precis på gränsen kostar, annars får några 4 dagar och andra 6
     if(run>m.maxRow){pen+=w.longRun*(run-m.maxRow)+w.run7*Math.max(0,run-m.maxRow-1);out&&out.push(I('soft',d,`Arbetar ${run} dagar i rad (högst ${m.maxRow})`));}};
   const freeEnd=free=>{if(free>c.maxOff)c.maxOff=free;if(free>=m.loLen){c.longOff++;offOver+=Math.min(free-m.loLen,2);}   // taket hindrar att en tom rad blir billigast
     if(free===1){c.singles++;pen+=w.singleOff;}else c.freeInBlocks+=free;};
@@ -1004,7 +1004,9 @@ function evenWeeks(p,c,out){
 }
 // 6. Rättvis fördelning: varje person tar sin andel av kvällarna, lika stor som snittet i avdelningen.
 function fairness(p,c,out){const m=M,w=m.w,dE=c.ev-m.shareE[p]*c.n,dW=c.weEve-m.shareE[p]*c.we,dN=Math.max(0,c.n-m.nMin[p]);
-  return w.fair*dE*dE+w.fairWe*dW*dW+w.daysOver*dN*dN;}
+  
+  // fredagskvällar och måndagsmorgnar i kvadrat: summan blir minst när alla har lika många
+  return w.fair*dE*dE+w.fairWe*dW*dW+w.daysOver*dN*dN+w.fairFri*c.friEve*c.friEve+w.fairMon*c.monDay*c.monDay;}
 // Kvällarnas andel i varje avdelning som schemat ser ut nu, bland dem som kan ta kvällspass.
 function retarget(){const m=M,ev=new Float64Array(m.U.length),n=new Float64Array(m.U.length);
   for(let p=0;p<m.P;p++){if(!m.shareE[p])continue;const row=m.row[p];for(let d=0;d<m.N;d++){const v=row[d];if(v<0)continue;n[m.unit[p]]++;if(m.sh.eve[v])ev[m.unit[p]]++;}}
@@ -1215,7 +1217,7 @@ function analyze(){
      val:`${hoursOk} av ${P} personer`,st:pill(hoursOk,P)},
     {n:'B',paper:'Ledighet i block om minst två dagar',how:'En ensam ledig dag mellan arbetsdagar ger sällan riktig återhämtning.',
      val:`${Math.round(blockPct*100)} % av ledigheten · högst ${singleMax} ${singleMax===1?'ensam ledig dag':'ensamma lediga dagar'} per person`,st:blockPct>=.85?'ok':'warn'},
-    {n:'C',paper:`Högst ${r.maxRow} arbetsdagar i rad och högst ${r.maxWeekDays} av 7 dagar`,how:'Fler än fem dagar i en vecka undviks men är tillåtet upp till gränsen. Sju dagar i rad undviks starkt.',
+    {n:'C',paper:`Högst ${r.maxRow} arbetsdagar i rad och högst ${r.maxWeekDays} av 7 dagar`,how:`Fler än fem dagar i en vecka undviks men är tillåtet upp till gränsen. Arbetsperioder om ${r.maxRow} dagar undviks också, så att alla får lika långa arbetsperioder. Sju dagar i rad undviks starkt.`,
      val:`Längsta arbetsperiod ${maxRun} dagar · ${sixW} ${sixW===1?'vecka':'veckor'} med fler än ${r.maxWeekDays} arbetsdagar`,st:maxRun<=r.maxRow&&!sixW?'ok':'warn'},
     {n:'D',paper:'Jämna veckor',how:`Timmarna sprids över perioden, så att ingen vecka blir mycket tyngre än snittet. Veckor över ${WEEK_MAX} timmar undviks starkt.`,
      val:`Tyngsta vecka ${fmtDur(maxWeekAll)} h, ${Math.round(maxRatio*100)} % av snittet`,st:maxRatio<=1+W.maxWeekPct/100+.01?'ok':'warn'},
@@ -1227,7 +1229,27 @@ function analyze(){
      val:wkN?`Lediga helger ger i snitt ${Math.round(wkSum/wkN/60)} h vila, kortast ${Math.floor(wkMinAll/60)} h`:'Inga lediga helger',st:'ok'},
     {n:'H',paper:`Alla får en långledighet om ${m.loLen===3?'tre':'fyra'} dagar`,how:`Varje fyraveckorsperiod förlängs en av de lediga helgerna till ${m.loLen===3?'tre dagar, fredag–söndag eller lördag–måndag':'fyra dagar, torsdag–söndag eller lördag–tisdag'}. Systemet fördelar platserna jämnt i varje grupp och helglag, så att alla får lika lång ledighet och frånvaron sprids över veckodagarna. Längre block än ${m.loLen===3?'tre':'fyra'} dagar undviks.`,
      val:`${cnt(x=>x.longOff>=m.NB)} av ${P} personer`,st:pill(cnt(x=>x.longOff>=m.NB),P)}];
-  return {persons,flags,missG,gapH,gaps,daySpread,capacity,todo,hard,soft,shortWd,shortWe,needWd,needWe,dailyV,weeklyV,rules,rec,law,hoursOk,blockPct,maxRun,minGapAll,totAway,totN};
+  /* Rättvisa: hur lika schemat är mellan personerna. För varje mått lägsta och högsta värde per person och hur många
+     som har det vanligaste värdet. Personer med olika tjänstgöringsgrad får naturligt olika antal pass. */
+  const act=persons.filter(x=>x.n);
+  const fairRow=(n,paper,how,f)=>{const v=act.map(f),h={};v.forEach(x=>h[x]=(h[x]||0)+1);
+    const lo=v.length?Math.min(...v):0,hi=v.length?Math.max(...v):0,top=Object.keys(h).sort((a,b)=>h[b]-h[a]||a-b)[0],same=v.length?h[top]:0;
+    return {n,paper,how,lo,hi,same,tot:v.length,val:lo===hi?`Lika för alla: ${lo}`:`${lo}–${hi} · ${same} av ${v.length} har ${top}`,st:hi-lo<=1?'ok':'warn'};};
+  const fair=[
+    fairRow('1','Arbetsdagar','Antal pass per person i hela grundschemat.',x=>x.n),
+    fairRow('2','Kvällspass','Pass som slutar på kvällen.',x=>x.ev),
+    fairRow('3','Helgpass','Pass på lördag eller söndag.',x=>x.we),
+    fairRow('4','Kvällspass på helgen','Kvällspass på lördag eller söndag.',x=>x.weEve),
+    fairRow('5','Fredagskvällar','Kvällspass på fredag.',x=>x.friEve),
+    fairRow('6','Måndagsmorgnar','Morgonpass på måndag.',x=>x.monDay),
+    fairRow('7','Längsta arbetsperiod, dagar','Flest arbetsdagar i rad.',x=>x.maxRun),
+    fairRow('8','Längsta ledighet, dagar','Flest lediga dagar i rad.',x=>x.maxOff),
+    fairRow('9','Ensamma lediga dagar','Lediga dagar med arbete både dagen före och dagen efter.',x=>x.singles),
+    fairRow('10','Kvällar i rad','Flest kvällspass i rad.',x=>x.eveRun),
+    fairRow('11','Tyngsta vecka, timmar','Veckan med flest arbetstimmar.',x=>Math.round(x.maxWeek/60)),
+    fairRow('12','Timmar efter kl. 19','Arbetstid efter kl. 19 i hela grundschemat.',x=>Math.round(x.late/60)),
+    fairRow('13',`Vila under ${QUICK_REST} timmar`,'Antal gånger vilan mellan två pass är kortare än så.',x=>x.quick)];
+  return {fair,persons,flags,missG,gapH,gaps,daySpread,capacity,todo,hard,soft,shortWd,shortWe,needWd,needWe,dailyV,weeklyV,rules,rec,law,hoursOk,blockPct,maxRun,minGapAll,totAway,totN};
 }
 </script>
 
@@ -1835,6 +1857,7 @@ function renderRegler(){
       <div class="card"><h2>Arbetstidslagen</h2><div>${ruleList(A.law)}</div><p class="note">Lagen går alltid före bemanningen. Systemet lämnar hellre en lucka i kurvan än bryter mot vilan.</p></div>
       <div class="card"><h2>Återhämtning</h2><div>${ruleList(A.rec)}</div></div>
       <div class="card"><h2>Era regler</h2><div>${ruleList(A.rules)}</div></div>
+      <div class="card"><h2>Rättvisa</h2><div>${ruleList(A.fair)}</div><p class="note">Lägsta och högsta värde per person, och hur många som har det vanligaste värdet. Olika tjänstgöringsgrad ger naturligt olika antal pass.</p></div>
     </div></details>`;
   $('#tab-regler details').addEventListener('toggle',e=>{rulesOpen=e.target.open;});
 }
@@ -1914,6 +1937,7 @@ function buildWorkbook(X){
   ws2['!cols']=[{wch:24},{wch:16},{wch:12},{wch:9},{wch:9},{wch:7},{wch:8},{wch:9},{wch:12},{wch:16},{wch:15}];
   X.utils.book_append_sheet(wb,ws2,'Summering');
   const rr=[['Regler och lag'],[],['Krav','Resultat']];A.law.concat(A.rules,A.rec).forEach(r=>rr.push([r.paper,r.val]));
+  rr.push([],['Rättvisa mellan personer']);A.fair.forEach(r=>rr.push([r.paper,r.val]));
   {const t=subTotals();rr.push([],[`Vikarietimmar på ${M.WK} veckor (minst ${SUB_MIN/60} h per pass)`,`Vardag före ${LATE/60}: ${fmtDur(t.day)} h · vardag efter ${LATE/60}: ${fmtDur(t.eve)} h · helg: ${fmtDur(t.we)} h · ${t.n} pass`]);}
   const ws3=X.utils.aoa_to_sheet(rr);ws3['!cols']=[{wch:60},{wch:60}];X.utils.book_append_sheet(wb,ws3,'Regler');
   return wb;
